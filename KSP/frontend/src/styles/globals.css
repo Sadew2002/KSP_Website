@@ -1,0 +1,187 @@
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+:root {
+  --color-red: #EF014F;
+  --color-black: #1A1A1B;
+  --color-gray: #F4F4F6;
+  --color-white: #FFFFFF;
+  --color-green: #27AE60;
+}
+
+/* Custom styles */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #F4F4F6;
+  color: #1A1A1B;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+/* Loading Spinner */
+.spinner {
+  border: 4px solid rgba(26, 26, 27, 0.1);
+  border-radius: 50%;
+  border-top: 4px solid #EF014F;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Card Animations */
+.card-hover {
+  @apply transition-all duration-300 ease-in-out hover:shadow-lg hover:-translate-y-1;
+}
+
+/* Button Styles */
+.btn-primary {
+  @apply bg-ksp-red hover:bg-red-700 text-white font-semibold py-2 px-6 rounded transition-colors duration-200;
+}
+
+.btn-primary:hover {
+  background-color: #C91145;
+  transform: translateY(-2px);
+}
+
+.btn-secondary {
+  @apply bg-ksp-gray hover:bg-gray-300 text-ksp-black font-semibold py-2 px-6 rounded transition-colors duration-200 border border-ksp-black;
+}
+
+.btn-secondary:hover {
+  background-color: #E8E8ED;
+}
+
+.btn-success {
+  @apply bg-ksp-green hover:bg-green-700 text-white font-semibold py-2 px-6 rounded transition-colors duration-200;
+}
+
+.btn-outline {
+  @apply border-2 border-ksp-black text-ksp-black hover:bg-ksp-black hover:text-white py-2 px-6 rounded transition-all duration-200;
+}
+
+/* Form Styling */
+.form-input {
+  @apply w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-ksp-red focus:border-transparent;
+}
+
+.form-input:focus {
+  border-color: #EF014F;
+  box-shadow: 0 0 0 3px rgba(239, 1, 79, 0.1);
+}
+
+.form-label {
+  @apply block text-ksp-black font-semibold mb-2;
+}
+
+.form-error {
+  @apply text-red-600 text-sm mt-1;
+}
+
+.form-success {
+  @apply text-ksp-green text-sm mt-1;
+}
+
+/* Badge Styles */
+.badge-red {
+  @apply bg-ksp-red text-white px-3 py-1 rounded-full text-sm font-semibold;
+}
+
+.badge-green {
+  @apply bg-ksp-green text-white px-3 py-1 rounded-full text-sm font-semibold;
+}
+
+.badge-gray {
+  @apply bg-ksp-gray text-ksp-black px-3 py-1 rounded-full text-sm font-semibold border border-ksp-black;
+}
+
+/* Price Tag Styling */
+.price-tag {
+  @apply text-ksp-red font-bold text-2xl;
+}
+
+.price-original {
+  @apply text-gray-500 line-through text-lg;
+}
+
+/* Heading Styles */
+h1, h2, h3, h4, h5, h6 {
+  @apply text-ksp-black;
+}
+
+h1 {
+  @apply text-4xl font-bold;
+}
+
+h2 {
+  @apply text-3xl font-bold;
+}
+
+h3 {
+  @apply text-2xl font-bold;
+}
+
+/* Text Utilities */
+.text-primary {
+  @apply text-ksp-black;
+}
+
+.text-secondary {
+  @apply text-gray-600;
+}
+
+.text-accent {
+  @apply text-ksp-red;
+}
+
+/* Card Base Styles */
+.card {
+  @apply bg-white rounded-lg shadow p-6 border border-gray-100;
+}
+
+.card:hover {
+  @apply shadow-lg;
+}
+
+/* Divider */
+.divider {
+  @apply border-t border-gray-200;
+}
+
+/* Links */
+a {
+  @apply text-ksp-red hover:text-red-700 transition-colors duration-200;
+}
+
+/* Alert Messages */
+.alert-success {
+  @apply bg-green-50 border border-ksp-green text-ksp-green p-4 rounded-lg mb-4;
+}
+
+.alert-error {
+  @apply bg-red-50 border border-red-500 text-red-600 p-4 rounded-lg mb-4;
+}
+
+.alert-warning {
+  @apply bg-yellow-50 border border-yellow-500 text-yellow-700 p-4 rounded-lg mb-4;
+}
+
+.alert-info {
+  @apply bg-blue-50 border border-blue-500 text-blue-600 p-4 rounded-lg mb-4;
+}
