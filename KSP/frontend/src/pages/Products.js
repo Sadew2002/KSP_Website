@@ -39,8 +39,20 @@ const Products = () => {
   const [sortBy, setSortBy] = useState('newest');
 
   const brands = ['Apple', 'Samsung', 'Xiaomi', 'OnePlus', 'Google', 'Huawei', 'POCO', 'Realme'];
-  const conditions = ['New', 'Like New', 'Excellent', 'Good'];
+  const conditions = ['Brand New', 'Pre-Owned'];
   const storageOptions = ['64GB', '128GB', '256GB', '512GB', '1TB'];
+
+  // Sync filters with URL params when they change
+  useEffect(() => {
+    setFilters({
+      brand: searchParams.get('brand') || '',
+      condition: searchParams.get('condition') || '',
+      minPrice: searchParams.get('minPrice') || '',
+      maxPrice: searchParams.get('maxPrice') || '',
+      storage: searchParams.get('storage') || '',
+      search: searchParams.get('search') || ''
+    });
+  }, [searchParams]);
 
   useEffect(() => {
     fetchProducts();
@@ -338,12 +350,13 @@ const Products = () => {
                   {/* Image Container */}
                   <div className="relative h-64 bg-gradient-to-br from-gray-100 to-gray-50 overflow-hidden">
                     <img 
-                      src={product.imageUrl 
+                      src={product.imageUrl && product.imageUrl.trim() !== ''
                         ? (product.imageUrl.startsWith('http') ? product.imageUrl : `http://localhost:5000${product.imageUrl}`)
                         : 'https://via.placeholder.com/300x300?text=Phone'
                       } 
                       alt={product.name}
                       className="w-full h-full object-contain p-4 group-hover:scale-110 transition-transform duration-500"
+                      onError={(e) => { e.target.src = 'https://via.placeholder.com/300x300?text=No+Image'; }}
                     />
                     
                     {/* Badges */}
@@ -351,7 +364,7 @@ const Products = () => {
                       <span className={`${stockBadge.color} text-white text-xs font-bold px-3 py-1 rounded-full`}>
                         {stockBadge.text}
                       </span>
-                      {product.condition !== 'New' && (
+                      {product.condition !== 'Brand New' && (
                         <span className="bg-blue-500 text-white text-xs font-bold px-3 py-1 rounded-full">
                           {product.condition}
                         </span>
@@ -416,12 +429,13 @@ const Products = () => {
                 >
                   <div className="w-48 h-48 bg-gradient-to-br from-gray-100 to-gray-50 flex-shrink-0 relative overflow-hidden">
                     <img 
-                      src={product.imageUrl 
+                      src={product.imageUrl && product.imageUrl.trim() !== ''
                         ? (product.imageUrl.startsWith('http') ? product.imageUrl : `http://localhost:5000${product.imageUrl}`)
                         : 'https://via.placeholder.com/200x200?text=Phone'
                       } 
                       alt={product.name}
                       className="w-full h-full object-contain p-4 group-hover:scale-110 transition-transform duration-500"
+                      onError={(e) => { e.target.src = 'https://via.placeholder.com/200x200?text=No+Image'; }}
                     />
                     <span className={`absolute top-3 left-3 ${stockBadge.color} text-white text-xs font-bold px-2 py-1 rounded-full`}>
                       {stockBadge.text}
@@ -434,7 +448,7 @@ const Products = () => {
                         <span className="text-xs font-bold text-ksp-red uppercase tracking-wider">{product.brand}</span>
                         <span className="text-gray-300">•</span>
                         <span className="text-xs text-gray-500">{product.storage}</span>
-                        {product.condition !== 'New' && (
+                        {product.condition !== 'Brand New' && (
                           <>
                             <span className="text-gray-300">•</span>
                             <span className="text-xs text-blue-500 font-medium">{product.condition}</span>

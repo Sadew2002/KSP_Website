@@ -37,9 +37,13 @@ const ProductDetail = () => {
           {/* Product Image */}
           <div className="card sticky top-20">
             <img 
-              src={product.imageUrl} 
+              src={product.imageUrl && product.imageUrl.trim() !== ''
+                ? (product.imageUrl.startsWith('http') ? product.imageUrl : `http://localhost:5000${product.imageUrl}`)
+                : 'https://via.placeholder.com/500x500?text=No+Image'
+              } 
               alt={product.name} 
               className="w-full rounded"
+              onError={(e) => { e.target.src = 'https://via.placeholder.com/500x500?text=No+Image'; }}
             />
             {!product.inStock && (
               <div className="mt-4 bg-red-100 border border-red-600 text-red-600 px-4 py-2 rounded text-center font-semibold">

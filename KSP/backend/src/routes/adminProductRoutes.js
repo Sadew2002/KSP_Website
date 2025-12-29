@@ -85,7 +85,7 @@ router.post('/', async (req, res) => {
       brand,
       price,
       storage = '128GB',
-      condition = 'New',
+      condition = 'Brand New',
       color,
       ram,
       quantity = 0,

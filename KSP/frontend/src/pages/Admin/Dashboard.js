@@ -23,7 +23,9 @@ import {
   Upload,
   Save,
   AlertCircle,
-  RefreshCw
+  RefreshCw,
+  Sparkles,
+  RotateCcw
 } from 'lucide-react';
 import api from '../../services/api';
 import { useNavigate } from 'react-router-dom';
@@ -40,16 +42,50 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [conditionFilter, setConditionFilter] = useState('all');
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imagePreview, setImagePreview] = useState(null);
+  const [settingsTab, setSettingsTab] = useState('store');
+  
+  // About Us form state
+  const [aboutForm, setAboutForm] = useState({
+    storeName: 'Kandy Super Phone',
+    tagline: 'Your Trusted Mobile Partner Since 2015',
+    description: 'Kandy Super Phone is the leading mobile phone retailer in Kandy, Sri Lanka. We are authorized dealers for all major brands including Apple, Samsung, Xiaomi, and more. Our commitment to quality and customer satisfaction has made us the go-to destination for all your mobile needs.',
+    mission: 'To provide our customers with genuine, high-quality mobile devices at competitive prices, backed by exceptional after-sales service and support.',
+    vision: 'To be the most trusted and preferred mobile retail destination in Sri Lanka, known for authenticity, variety, and customer care.',
+    address: 'No. 123, Dalada Veediya, Kandy, Sri Lanka',
+    phone: '+94 81 234 5678',
+    email: 'info@kandysuperphone.lk',
+    workingHours: 'Mon - Sat: 9:00 AM - 8:00 PM | Sun: 10:00 AM - 6:00 PM',
+    yearsInBusiness: '10+',
+    happyCustomers: '50,000+',
+    brandsAvailable: '25+',
+    warrantySupport: '100%'
+  });
+
+  // Load About Us data on mount
+  useEffect(() => {
+    const savedAboutData = localStorage.getItem('aboutUsData');
+    if (savedAboutData) {
+      setAboutForm(JSON.parse(savedAboutData));
+    }
+  }, []);
+
+  // Save About Us data
+  const handleSaveAboutUs = () => {
+    localStorage.setItem('aboutUsData', JSON.stringify(aboutForm));
+    setSuccess('About Us content saved successfully!');
+    setTimeout(() => setSuccess(''), 3000);
+  };
   
   // Product form state
   const [productForm, setProductForm] = useState({
     name: '', description: '', brand: '', price: '', storage: '128GB',
-    condition: 'New', color: '', ram: '8GB', quantity: 0, imageUrl: '', sku: ''
+    condition: 'Brand New', color: '', ram: '8GB', quantity: 0, imageUrl: '', sku: ''
   });
 
   // Handle image upload
@@ -221,7 +257,7 @@ const AdminDashboard = () => {
   const resetForm = () => {
     setProductForm({
       name: '', description: '', brand: '', price: '', storage: '128GB',
-      condition: 'New', color: '', ram: '8GB', quantity: 0, imageUrl: '', sku: ''
+      condition: 'Brand New', color: '', ram: '8GB', quantity: 0, imageUrl: '', sku: ''
     });
     setSelectedProduct(null);
     setImagePreview(null);
@@ -271,9 +307,9 @@ const AdminDashboard = () => {
 
   const menuItems = [
     { id: 'overview', label: 'Overview', icon: BarChart3 },
-    { id: 'products', label: 'Products', icon: Package },
+    { id: 'brand-new', label: 'Brand New', icon: Sparkles },
+    { id: 'pre-owned', label: 'Pre-Owned', icon: RotateCcw },
     { id: 'clients', label: 'Clients', icon: Users },
-    { id: 'stock', label: 'Stock', icon: Box },
     { id: 'orders', label: 'Orders', icon: ShoppingCart },
     { id: 'settings', label: 'Settings', icon: Settings }
   ];
@@ -472,26 +508,170 @@ const AdminDashboard = () => {
                   </div>
                   <div className="flex-1">
                     <h3 className="font-bold text-lg">Low Stock Alert</h3>
-                    <p className="text-white/80 text-sm">5 products are running low on stock. Review inventory to avoid stockouts.</p>
+                    <p className="text-white/80 text-sm">{products.filter(p => p.quantity > 0 && p.quantity <= 5).length} products are running low on stock. Review inventory to avoid stockouts.</p>
                   </div>
-                  <button className="px-6 py-3 bg-white text-ksp-red font-bold rounded-xl hover:bg-gray-100 transition-colors">
+                  <button onClick={() => setActiveTab('stock')} className="px-6 py-3 bg-white text-ksp-red font-bold rounded-xl hover:bg-gray-100 transition-colors">
                     Review Stock
                   </button>
                 </div>
               </div>
+
+              {/* All Products with Filter */}
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="p-6 border-b border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-xl font-bold text-gray-900">All Products</h2>
+                    <div className="flex items-center gap-4">
+                      <div className="relative">
+                        <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <input 
+                          type="text" 
+                          placeholder="Search products..." 
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          className="pl-10 pr-4 py-2 bg-gray-100 rounded-xl border-none focus:ring-2 focus:ring-ksp-red/20 w-64 text-sm" 
+                        />
+                      </div>
+                      <select 
+                        value={conditionFilter}
+                        onChange={(e) => setConditionFilter(e.target.value)}
+                        className="px-4 py-2 bg-gray-100 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ksp-red/20"
+                      >
+                        <option value="all">All Products</option>
+                        <option value="Brand New">Brand New Only</option>
+                        <option value="Pre-Owned">Pre-Owned Only</option>
+                      </select>
+                      <button 
+                        onClick={fetchProducts}
+                        className="flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors text-sm"
+                      >
+                        <RefreshCw size={16} className={loading ? 'animate-spin' : ''} /> Refresh
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Product</th>
+                      <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">SKU</th>
+                      <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Brand</th>
+                      <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Condition</th>
+                      <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Price</th>
+                      <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Stock</th>
+                      <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Status</th>
+                      <th className="text-right px-6 py-4 text-sm font-semibold text-gray-600">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loading ? (
+                      <tr><td colSpan="8" className="px-6 py-12 text-center text-gray-500">
+                        <RefreshCw size={24} className="animate-spin mx-auto mb-2" />Loading products...
+                      </td></tr>
+                    ) : products
+                        .filter(p => conditionFilter === 'all' || p.condition === conditionFilter)
+                        .filter(p => !searchTerm || p.name.toLowerCase().includes(searchTerm.toLowerCase()) || p.sku?.toLowerCase().includes(searchTerm.toLowerCase()))
+                        .length === 0 ? (
+                      <tr><td colSpan="8" className="px-6 py-12 text-center text-gray-500">No products found</td></tr>
+                    ) : products
+                        .filter(p => conditionFilter === 'all' || p.condition === conditionFilter)
+                        .filter(p => !searchTerm || p.name.toLowerCase().includes(searchTerm.toLowerCase()) || p.sku?.toLowerCase().includes(searchTerm.toLowerCase()))
+                        .map((product) => (
+                      <tr key={product.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${product.condition === 'Brand New' ? 'bg-green-100' : 'bg-orange-100'}`}>
+                              {product.condition === 'Brand New' ? (
+                                <Sparkles size={20} className="text-green-600" />
+                              ) : (
+                                <RotateCcw size={20} className="text-orange-600" />
+                              )}
+                            </div>
+                            <div>
+                              <span className="font-semibold text-gray-900 block">{product.name}</span>
+                              <span className="text-xs text-gray-500">{product.storage}</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-gray-600 font-mono text-sm">{product.sku}</td>
+                        <td className="px-6 py-4 text-gray-600">{product.brand}</td>
+                        <td className="px-6 py-4">
+                          <span className={`px-3 py-1 rounded-lg text-xs font-semibold ${product.condition === 'Brand New' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
+                            {product.condition}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 font-semibold text-gray-900">{formatPrice(product.price)}</td>
+                        <td className="px-6 py-4 text-gray-600">{product.quantity} units</td>
+                        <td className="px-6 py-4">
+                          <span className={`px-3 py-1 rounded-lg text-xs font-semibold ${getStatusColor(getStockStatus(product.quantity))}`}>
+                            {getStockStatus(product.quantity)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center justify-end gap-2">
+                            <button onClick={() => openEditModal(product)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Edit">
+                              <Edit size={18} className="text-blue-500" />
+                            </button>
+                            <button onClick={() => { setSelectedProduct(product); setShowDeleteConfirm(true); }} className="p-2 hover:bg-red-50 rounded-lg transition-colors" title="Delete">
+                              <Trash2 size={18} className="text-red-500" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </>
           )}
 
-          {/* Products Tab */}
-          {activeTab === 'products' && (
+          {/* Brand New Tab */}
+          {activeTab === 'brand-new' && (
             <>
+              {/* Stock Summary Cards for Brand New */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-green-100 rounded-xl">
+                      <Box size={22} className="text-green-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">In Stock</p>
+                      <p className="text-2xl font-black text-gray-900">{products.filter(p => p.condition === 'Brand New' && p.quantity > 5).length}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-yellow-100 rounded-xl">
+                      <AlertCircle size={22} className="text-yellow-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Low Stock</p>
+                      <p className="text-2xl font-black text-gray-900">{products.filter(p => p.condition === 'Brand New' && p.quantity > 0 && p.quantity <= 5).length}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-red-100 rounded-xl">
+                      <X size={22} className="text-red-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Out of Stock</p>
+                      <p className="text-2xl font-black text-gray-900">{products.filter(p => p.condition === 'Brand New' && p.quantity === 0).length}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-4">
                   <div className="relative">
                     <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                     <input 
                       type="text" 
-                      placeholder="Search products..." 
+                      placeholder="Search brand new products..." 
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="pl-10 pr-4 py-3 bg-white rounded-xl border border-gray-200 focus:ring-2 focus:ring-ksp-red/20 w-80" 
@@ -505,15 +685,24 @@ const AdminDashboard = () => {
                   </button>
                 </div>
                 <button 
-                  onClick={() => { resetForm(); setShowAddProduct(true); }}
+                  onClick={() => { resetForm(); setProductForm(prev => ({...prev, condition: 'Brand New'})); setShowAddProduct(true); }}
                   className="flex items-center gap-2 px-6 py-3 bg-ksp-red text-white rounded-xl font-semibold hover:bg-red-600 transition-colors"
                 >
-                  <Plus size={20} /> Add Product
+                  <Plus size={20} /> Add Brand New Product
                 </button>
               </div>
 
-              {/* Products Table */}
+              {/* Brand New Products Table */}
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 border-b border-gray-100">
+                  <div className="flex items-center gap-2">
+                    <Sparkles size={20} className="text-green-600" />
+                    <span className="font-semibold text-green-800">Brand New Products</span>
+                    <span className="ml-2 px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                      {products.filter(p => p.condition === 'Brand New').length} items
+                    </span>
+                  </div>
+                </div>
                 <table className="w-full">
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
@@ -531,14 +720,151 @@ const AdminDashboard = () => {
                       <tr><td colSpan="7" className="px-6 py-12 text-center text-gray-500">
                         <RefreshCw size={24} className="animate-spin mx-auto mb-2" />Loading products...
                       </td></tr>
-                    ) : products.length === 0 ? (
-                      <tr><td colSpan="7" className="px-6 py-12 text-center text-gray-500">No products found</td></tr>
-                    ) : products.map((product) => (
+                    ) : products.filter(p => p.condition === 'Brand New').length === 0 ? (
+                      <tr><td colSpan="7" className="px-6 py-12 text-center text-gray-500">No brand new products found</td></tr>
+                    ) : products.filter(p => p.condition === 'Brand New').map((product) => (
                       <tr key={product.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center">
-                              <Package size={20} className="text-gray-400" />
+                            <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                              <Sparkles size={20} className="text-green-600" />
+                            </div>
+                            <div>
+                              <span className="font-semibold text-gray-900 block">{product.name}</span>
+                              <span className="text-xs text-gray-500">{product.storage} • {product.condition}</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-gray-600 font-mono text-sm">{product.sku}</td>
+                        <td className="px-6 py-4 text-gray-600">{product.brand}</td>
+                        <td className="px-6 py-4 font-semibold text-gray-900">{formatPrice(product.price)}</td>
+                        <td className="px-6 py-4 text-gray-600">{product.quantity} units</td>
+                        <td className="px-6 py-4">
+                          <span className={`px-3 py-1 rounded-lg text-xs font-semibold ${getStatusColor(getStockStatus(product.quantity))}`}>
+                            {getStockStatus(product.quantity)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center justify-end gap-2">
+                            <button onClick={() => openEditModal(product)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Edit">
+                              <Edit size={18} className="text-blue-500" />
+                            </button>
+                            <button onClick={() => { setSelectedProduct(product); setShowDeleteConfirm(true); }} className="p-2 hover:bg-red-50 rounded-lg transition-colors" title="Delete">
+                              <Trash2 size={18} className="text-red-500" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+
+          {/* Pre-Owned Tab */}
+          {activeTab === 'pre-owned' && (
+            <>
+              {/* Stock Summary Cards for Pre-Owned */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-green-100 rounded-xl">
+                      <Box size={22} className="text-green-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">In Stock</p>
+                      <p className="text-2xl font-black text-gray-900">{products.filter(p => p.condition === 'Pre-Owned' && p.quantity > 5).length}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-yellow-100 rounded-xl">
+                      <AlertCircle size={22} className="text-yellow-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Low Stock</p>
+                      <p className="text-2xl font-black text-gray-900">{products.filter(p => p.condition === 'Pre-Owned' && p.quantity > 0 && p.quantity <= 5).length}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-red-100 rounded-xl">
+                      <X size={22} className="text-red-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Out of Stock</p>
+                      <p className="text-2xl font-black text-gray-900">{products.filter(p => p.condition === 'Pre-Owned' && p.quantity === 0).length}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-4">
+                  <div className="relative">
+                    <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input 
+                      type="text" 
+                      placeholder="Search pre-owned products..." 
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10 pr-4 py-3 bg-white rounded-xl border border-gray-200 focus:ring-2 focus:ring-ksp-red/20 w-80" 
+                    />
+                  </div>
+                  <button 
+                    onClick={fetchProducts}
+                    className="flex items-center gap-2 px-4 py-3 bg-white rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors"
+                  >
+                    <RefreshCw size={18} className={loading ? 'animate-spin' : ''} /> Refresh
+                  </button>
+                </div>
+                <button 
+                  onClick={() => { resetForm(); setProductForm(prev => ({...prev, condition: 'Pre-Owned'})); setShowAddProduct(true); }}
+                  className="flex items-center gap-2 px-6 py-3 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition-colors"
+                >
+                  <Plus size={20} /> Add Pre-Owned Product
+                </button>
+              </div>
+
+              {/* Pre-Owned Products Table */}
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="p-4 bg-gradient-to-r from-orange-50 to-amber-50 border-b border-gray-100">
+                  <div className="flex items-center gap-2">
+                    <RotateCcw size={20} className="text-orange-600" />
+                    <span className="font-semibold text-orange-800">Pre-Owned Products</span>
+                    <span className="ml-2 px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full text-xs font-medium">
+                      {products.filter(p => p.condition === 'Pre-Owned').length} items
+                    </span>
+                  </div>
+                </div>
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Product</th>
+                      <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">SKU</th>
+                      <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Brand</th>
+                      <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Price</th>
+                      <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Stock</th>
+                      <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Status</th>
+                      <th className="text-right px-6 py-4 text-sm font-semibold text-gray-600">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loading ? (
+                      <tr><td colSpan="7" className="px-6 py-12 text-center text-gray-500">
+                        <RefreshCw size={24} className="animate-spin mx-auto mb-2" />Loading products...
+                      </td></tr>
+                    ) : products.filter(p => p.condition === 'Pre-Owned').length === 0 ? (
+                      <tr><td colSpan="7" className="px-6 py-12 text-center text-gray-500">No pre-owned products found</td></tr>
+                    ) : products.filter(p => p.condition === 'Pre-Owned').map((product) => (
+                      <tr key={product.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
+                              <RotateCcw size={20} className="text-orange-600" />
                             </div>
                             <div>
                               <span className="font-semibold text-gray-900 block">{product.name}</span>
@@ -626,89 +952,6 @@ const AdminDashboard = () => {
             </>
           )}
 
-          {/* Stock Tab */}
-          {activeTab === 'stock' && (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-green-100 rounded-xl">
-                      <Box size={24} className="text-green-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">In Stock</p>
-                      <p className="text-2xl font-black text-gray-900">142</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-yellow-100 rounded-xl">
-                      <AlertCircle size={24} className="text-yellow-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Low Stock</p>
-                      <p className="text-2xl font-black text-gray-900">12</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-red-100 rounded-xl">
-                      <X size={24} className="text-red-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Out of Stock</p>
-                      <p className="text-2xl font-black text-gray-900">2</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Stock Table */}
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="p-6 border-b border-gray-100">
-                  <h2 className="text-xl font-bold text-gray-900">Inventory Management</h2>
-                </div>
-                <table className="w-full">
-                  <thead className="bg-gray-50 border-b border-gray-200">
-                    <tr>
-                      <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Product</th>
-                      <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">SKU</th>
-                      <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Current Stock</th>
-                      <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Reorder Level</th>
-                      <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Status</th>
-                      <th className="text-right px-6 py-4 text-sm font-semibold text-gray-600">Update Stock</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {products.map((product) => (
-                      <tr key={product.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4 font-semibold text-gray-900">{product.name}</td>
-                        <td className="px-6 py-4 text-gray-600">SKU-{String(product.id).padStart(5, '0')}</td>
-                        <td className="px-6 py-4 font-semibold text-gray-900">{product.stock}</td>
-                        <td className="px-6 py-4 text-gray-600">10</td>
-                        <td className="px-6 py-4">
-                          <span className={`px-3 py-1 rounded-lg text-xs font-semibold ${getStatusColor(product.status)}`}>
-                            {product.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center justify-end gap-2">
-                            <input type="number" defaultValue={product.stock} className="w-20 px-3 py-2 border border-gray-200 rounded-lg text-center" />
-                            <button className="px-4 py-2 bg-ksp-red text-white rounded-lg text-sm font-semibold hover:bg-red-600 transition-colors">
-                              Update
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </>
-          )}
-
           {/* Orders Tab */}
           {activeTab === 'orders' && (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -764,27 +1007,147 @@ const AdminDashboard = () => {
 
           {/* Settings Tab */}
           {activeTab === 'settings' && (
-            <div className="max-w-2xl">
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
-                <h2 className="text-xl font-bold text-gray-900 mb-6">Store Settings</h2>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Store Name</label>
-                    <input type="text" defaultValue="Kandy Super Phone" className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20" />
+            <div className="max-w-4xl">
+              {/* Settings Tabs */}
+              <div className="flex items-center gap-2 mb-6 bg-white rounded-xl p-2 shadow-sm border border-gray-100">
+                <button
+                  onClick={() => setSettingsTab('store')}
+                  className={`px-6 py-3 rounded-lg font-semibold transition-all ${settingsTab === 'store' ? 'bg-ksp-red text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                >
+                  Store Settings
+                </button>
+                <button
+                  onClick={() => setSettingsTab('about')}
+                  className={`px-6 py-3 rounded-lg font-semibold transition-all ${settingsTab === 'about' ? 'bg-ksp-red text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                >
+                  About Us Page
+                </button>
+              </div>
+
+              {success && <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-xl text-green-600 text-sm">{success}</div>}
+
+              {/* Store Settings */}
+              {settingsTab === 'store' && (
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                  <h2 className="text-xl font-bold text-gray-900 mb-6">Store Settings</h2>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Store Name</label>
+                      <input type="text" value={aboutForm.storeName} onChange={(e) => setAboutForm({...aboutForm, storeName: e.target.value})} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Contact Email</label>
+                      <input type="email" value={aboutForm.email} onChange={(e) => setAboutForm({...aboutForm, email: e.target.value})} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Phone Number</label>
+                      <input type="text" value={aboutForm.phone} onChange={(e) => setAboutForm({...aboutForm, phone: e.target.value})} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Store Address</label>
+                      <input type="text" value={aboutForm.address} onChange={(e) => setAboutForm({...aboutForm, address: e.target.value})} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Working Hours</label>
+                      <input type="text" value={aboutForm.workingHours} onChange={(e) => setAboutForm({...aboutForm, workingHours: e.target.value})} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20" />
+                    </div>
+                    <button onClick={handleSaveAboutUs} className="flex items-center gap-2 px-6 py-3 bg-ksp-red text-white rounded-xl font-semibold hover:bg-red-600 transition-colors">
+                      <Save size={18} /> Save Changes
+                    </button>
                   </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Contact Email</label>
-                    <input type="email" defaultValue="info@kandysuperphone.lk" className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20" />
+                </div>
+              )}
+
+              {/* About Us Settings */}
+              {settingsTab === 'about' && (
+                <div className="space-y-6">
+                  {/* Hero Section */}
+                  <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                    <h2 className="text-xl font-bold text-gray-900 mb-6">Hero Section</h2>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Store Name / Title</label>
+                        <input type="text" value={aboutForm.storeName} onChange={(e) => setAboutForm({...aboutForm, storeName: e.target.value})} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Tagline</label>
+                        <input type="text" value={aboutForm.tagline} onChange={(e) => setAboutForm({...aboutForm, tagline: e.target.value})} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20" />
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Phone Number</label>
-                    <input type="text" defaultValue="+94 81 234 5678" className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20" />
+
+                  {/* Stats Section */}
+                  <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                    <h2 className="text-xl font-bold text-gray-900 mb-6">Statistics</h2>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Years in Business</label>
+                        <input type="text" value={aboutForm.yearsInBusiness} onChange={(e) => setAboutForm({...aboutForm, yearsInBusiness: e.target.value})} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Happy Customers</label>
+                        <input type="text" value={aboutForm.happyCustomers} onChange={(e) => setAboutForm({...aboutForm, happyCustomers: e.target.value})} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Brands Available</label>
+                        <input type="text" value={aboutForm.brandsAvailable} onChange={(e) => setAboutForm({...aboutForm, brandsAvailable: e.target.value})} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Warranty Support</label>
+                        <input type="text" value={aboutForm.warrantySupport} onChange={(e) => setAboutForm({...aboutForm, warrantySupport: e.target.value})} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20" />
+                      </div>
+                    </div>
                   </div>
-                  <button className="flex items-center gap-2 px-6 py-3 bg-ksp-red text-white rounded-xl font-semibold hover:bg-red-600 transition-colors">
-                    <Save size={18} /> Save Changes
+
+                  {/* Content Section */}
+                  <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                    <h2 className="text-xl font-bold text-gray-900 mb-6">About Content</h2>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Store Description</label>
+                        <textarea rows={4} value={aboutForm.description} onChange={(e) => setAboutForm({...aboutForm, description: e.target.value})} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20 resize-none"></textarea>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Our Mission</label>
+                        <textarea rows={3} value={aboutForm.mission} onChange={(e) => setAboutForm({...aboutForm, mission: e.target.value})} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20 resize-none"></textarea>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Our Vision</label>
+                        <textarea rows={3} value={aboutForm.vision} onChange={(e) => setAboutForm({...aboutForm, vision: e.target.value})} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20 resize-none"></textarea>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Contact Info */}
+                  <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                    <h2 className="text-xl font-bold text-gray-900 mb-6">Contact Information</h2>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Address</label>
+                        <input type="text" value={aboutForm.address} onChange={(e) => setAboutForm({...aboutForm, address: e.target.value})} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">Phone Number</label>
+                          <input type="text" value={aboutForm.phone} onChange={(e) => setAboutForm({...aboutForm, phone: e.target.value})} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
+                          <input type="email" value={aboutForm.email} onChange={(e) => setAboutForm({...aboutForm, email: e.target.value})} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20" />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Working Hours</label>
+                        <input type="text" value={aboutForm.workingHours} onChange={(e) => setAboutForm({...aboutForm, workingHours: e.target.value})} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <button onClick={handleSaveAboutUs} className="flex items-center gap-2 px-6 py-3 bg-ksp-red text-white rounded-xl font-semibold hover:bg-red-600 transition-colors">
+                    <Save size={18} /> Save About Us Content
                   </button>
                 </div>
-              </div>
+              )}
             </div>
           )}
 
@@ -832,20 +1195,9 @@ const AdminDashboard = () => {
                   </select>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Storage</label>
-                  <input type="text" value={productForm.storage} onChange={(e) => setProductForm({...productForm, storage: e.target.value})} placeholder="e.g. 256GB" className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20" />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Condition</label>
-                  <select value={productForm.condition} onChange={(e) => setProductForm({...productForm, condition: e.target.value})} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20">
-                    <option value="New">New</option>
-                    <option value="Like New">Like New</option>
-                    <option value="Excellent">Excellent</option>
-                    <option value="Good">Good</option>
-                  </select>
-                </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Storage</label>
+                <input type="text" value={productForm.storage} onChange={(e) => setProductForm({...productForm, storage: e.target.value})} placeholder="e.g. 256GB" className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -961,20 +1313,9 @@ const AdminDashboard = () => {
                   </select>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Storage</label>
-                  <input type="text" value={productForm.storage} onChange={(e) => setProductForm({...productForm, storage: e.target.value})} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20" />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Condition</label>
-                  <select value={productForm.condition} onChange={(e) => setProductForm({...productForm, condition: e.target.value})} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20">
-                    <option value="New">New</option>
-                    <option value="Like New">Like New</option>
-                    <option value="Excellent">Excellent</option>
-                    <option value="Good">Good</option>
-                  </select>
-                </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Storage</label>
+                <input type="text" value={productForm.storage} onChange={(e) => setProductForm({...productForm, storage: e.target.value})} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>

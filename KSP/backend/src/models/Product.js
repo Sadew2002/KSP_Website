@@ -39,8 +39,8 @@ const Product = sequelize.define('Product', {
     comment: 'e.g., 64GB, 128GB, 256GB'
   },
   condition: {
-    type: DataTypes.ENUM('New', 'Used'),
-    defaultValue: 'New'
+    type: DataTypes.ENUM('Brand New', 'Pre-Owned'),
+    defaultValue: 'Brand New'
   },
   color: {
     type: DataTypes.STRING,

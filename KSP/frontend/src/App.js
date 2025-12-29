@@ -10,6 +10,7 @@ import Checkout from './pages/Checkout';
 import Login from './pages/Auth/Login';
 import Register from './pages/Auth/Register';
 import Orders from './pages/Orders';
+import About from './pages/About';
 import AdminDashboard from './pages/Admin/Dashboard';
 import './styles/globals.css';
 
@@ -41,6 +42,7 @@ function App() {
           <Route path="/cart" element={<Cart />} />
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/orders" element={<Orders />} />
+          <Route path="/about" element={<About />} />
           
           {/* Auth Routes */}
           <Route path="/login" element={<Login />} />
