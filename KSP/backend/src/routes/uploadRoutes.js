@@ -5,9 +5,10 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-// Configure storage
+// Configure storage - save to backend uploads/products folder
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
+    // Save to backend's uploads/products folder
     const uploadPath = path.join(__dirname, '../../uploads/products');
     // Create directory if it doesn't exist
     if (!fs.existsSync(uploadPath)) {
@@ -16,10 +17,23 @@ const storage = multer.diskStorage({
     cb(null, uploadPath);
   },
   filename: (req, file, cb) => {
-    // Generate unique filename
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    // Use product name from request, or generate unique name if not provided
+    const productName = req.body.productName;
     const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, 'product-' + uniqueSuffix + ext);
+    
+    if (productName) {
+      // Sanitize product name for filename (remove special characters, replace spaces with hyphens)
+      const sanitizedName = productName
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
+        .trim()
+        .replace(/\s+/g, '-'); // Replace spaces with hyphens
+      cb(null, sanitizedName + ext);
+    } else {
+      // Fallback to timestamp if no product name provided
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      cb(null, 'product-' + uniqueSuffix + ext);
+    }
   }
 });
 
@@ -55,7 +69,7 @@ router.post('/product-image', upload.single('image'), (req, res) => {
       });
     }
 
-    // Return the URL path to access the image
+    // Return the URL path to access the image from backend uploads
     const imageUrl = `/uploads/products/${req.file.filename}`;
     
     res.json({

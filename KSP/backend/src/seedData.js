@@ -7,11 +7,20 @@ const seedData = async () => {
     await sequelize.authenticate();
     console.log('Database connected...');
 
-    // Create Admin User
+    // Create or Update Admin User with correct password
     const adminPassword = await bcrypt.hash('admin123', 10);
-    const admin = await User.findOrCreate({
-      where: { email: 'admin@ksp.com' },
-      defaults: {
+    let admin = await User.findOne({ where: { email: 'admin@ksp.com' } });
+    
+    if (admin) {
+      // Update existing admin
+      await User.update(
+        { password: adminPassword },
+        { where: { email: 'admin@ksp.com' } }
+      );
+      console.log('✓ Admin user: Already exists - Password reset to admin123');
+    } else {
+      // Create new admin
+      admin = await User.create({
         firstName: 'Admin',
         lastName: 'User',
         email: 'admin@ksp.com',
@@ -23,15 +32,24 @@ const seedData = async () => {
         postalCode: '20000',
         role: 'admin',
         isActive: true
-      }
-    });
-    console.log('✓ Admin user created:', admin[1] ? 'New' : 'Already exists');
+      });
+      console.log('✓ Admin user: Created with password admin123');
+    }
 
-    // Create Sample Customer
+    // Create or Update Sample Customer with correct password
     const customerPassword = await bcrypt.hash('customer123', 10);
-    const customer = await User.findOrCreate({
-      where: { email: 'customer@example.com' },
-      defaults: {
+    let customer = await User.findOne({ where: { email: 'customer@example.com' } });
+    
+    if (customer) {
+      // Update existing customer
+      await User.update(
+        { password: customerPassword },
+        { where: { email: 'customer@example.com' } }
+      );
+      console.log('✓ Customer user: Already exists - Password reset to customer123');
+    } else {
+      // Create new customer
+      customer = await User.create({
         firstName: 'John',
         lastName: 'Doe',
         email: 'customer@example.com',
@@ -43,9 +61,9 @@ const seedData = async () => {
         postalCode: '10000',
         role: 'customer',
         isActive: true
-      }
-    });
-    console.log('✓ Customer user created:', customer[1] ? 'New' : 'Already exists');
+      });
+      console.log('✓ Customer user: Created with password customer123');
+    }
 
     // Create Sample Products
     const products = [
@@ -55,11 +73,11 @@ const seedData = async () => {
         brand: 'Apple',
         price: 499999.00,
         storage: '256GB',
-        condition: 'New',
+        condition: 'Brand New',
         color: 'Natural Titanium',
         ram: '8GB',
         quantity: 15,
-        imageUrl: '/images/iphone15promax.jpg',
+        imageUrl: '/uploads/products/iphone-15-pro-max.jpeg',
         sku: 'APL-IP15PM-256-NT'
       },
       {
@@ -68,11 +86,11 @@ const seedData = async () => {
         brand: 'Apple',
         price: 449999.00,
         storage: '128GB',
-        condition: 'New',
+        condition: 'Brand New',
         color: 'Blue Titanium',
         ram: '8GB',
         quantity: 20,
-        imageUrl: '/images/iphone15pro.jpg',
+        imageUrl: '/uploads/products/iphone-15-pro.jpeg',
         sku: 'APL-IP15P-128-BT'
       },
       {
@@ -81,11 +99,11 @@ const seedData = async () => {
         brand: 'Apple',
         price: 329999.00,
         storage: '128GB',
-        condition: 'New',
+        condition: 'Brand New',
         color: 'Midnight',
         ram: '6GB',
         quantity: 25,
-        imageUrl: '/images/iphone14.jpg',
+        imageUrl: '/uploads/products/iphone-14.jpg',
         sku: 'APL-IP14-128-MN'
       },
       {
@@ -94,11 +112,11 @@ const seedData = async () => {
         brand: 'Samsung',
         price: 479999.00,
         storage: '256GB',
-        condition: 'New',
+        condition: 'Brand New',
         color: 'Titanium Black',
         ram: '12GB',
         quantity: 18,
-        imageUrl: '/images/galaxys24ultra.jpg',
+        imageUrl: '/uploads/products/samsung-galaxy-s24-ultra.jpeg',
         sku: 'SAM-S24U-256-TB'
       },
       {
@@ -107,11 +125,11 @@ const seedData = async () => {
         brand: 'Samsung',
         price: 389999.00,
         storage: '256GB',
-        condition: 'New',
+        condition: 'Brand New',
         color: 'Cobalt Violet',
         ram: '12GB',
         quantity: 22,
-        imageUrl: '/images/galaxys24plus.jpg',
+        imageUrl: '/uploads/products/samsung-galaxy-s24.jpg',
         sku: 'SAM-S24P-256-CV'
       },
       {
@@ -120,11 +138,11 @@ const seedData = async () => {
         brand: 'Samsung',
         price: 159999.00,
         storage: '128GB',
-        condition: 'New',
+        condition: 'Brand New',
         color: 'Awesome Graphite',
         ram: '8GB',
         quantity: 30,
-        imageUrl: '/images/galaxya54.jpg',
+        imageUrl: '/uploads/products/samsung-galaxy-a54-5g.jpg',
         sku: 'SAM-A54-128-AG'
       },
       {
@@ -133,11 +151,11 @@ const seedData = async () => {
         brand: 'Google',
         price: 399999.00,
         storage: '128GB',
-        condition: 'New',
+        condition: 'Brand New',
         color: 'Obsidian',
         ram: '12GB',
         quantity: 12,
-        imageUrl: '/images/pixel8pro.jpg',
+        imageUrl: '/uploads/products/google-pixel-8-pro.jpg',
         sku: 'GGL-PX8P-128-OB'
       },
       {
@@ -146,11 +164,11 @@ const seedData = async () => {
         brand: 'Google',
         price: 279999.00,
         storage: '128GB',
-        condition: 'New',
+        condition: 'Brand New',
         color: 'Hazel',
         ram: '8GB',
         quantity: 15,
-        imageUrl: '/images/pixel8.jpg',
+        imageUrl: '/uploads/products/google-pixel-8.jpg',
         sku: 'GGL-PX8-128-HZ'
       },
       {
@@ -159,11 +177,11 @@ const seedData = async () => {
         brand: 'OnePlus',
         price: 329999.00,
         storage: '256GB',
-        condition: 'New',
+        condition: 'Brand New',
         color: 'Silky Black',
         ram: '12GB',
         quantity: 20,
-        imageUrl: '/images/oneplus12.jpg',
+        imageUrl: '/uploads/products/oneplus-12.jpg',
         sku: 'OP-12-256-SB'
       },
       {
@@ -172,37 +190,37 @@ const seedData = async () => {
         brand: 'Xiaomi',
         price: 299999.00,
         storage: '256GB',
-        condition: 'New',
+        condition: 'Brand New',
         color: 'Black',
         ram: '12GB',
         quantity: 16,
-        imageUrl: '/images/xiaomi14pro.jpg',
+        imageUrl: '/uploads/products/xiaomi-14-pro.jpg',
         sku: 'XMI-14P-256-BK'
       },
       {
-        name: 'iPhone 13 (Used)',
-        description: 'Well-maintained used iPhone 13 in excellent condition. Minor scratches only.',
+        name: 'iPhone 13 (Pre-Owned)',
+        description: 'Well-maintained pre-owned iPhone 13 in excellent condition. Minor scratches only.',
         brand: 'Apple',
         price: 189999.00,
         storage: '128GB',
-        condition: 'Used',
+        condition: 'Pre-Owned',
         color: 'Pink',
         ram: '4GB',
         quantity: 5,
-        imageUrl: '/images/iphone13used.jpg',
+        imageUrl: '/uploads/products/iphone-13-pre-owned.jpg',
         sku: 'APL-IP13-128-PK-U'
       },
       {
-        name: 'Samsung Galaxy S23 (Used)',
+        name: 'Samsung Galaxy S23 (Pre-Owned)',
         description: 'Pre-owned Galaxy S23 in great condition with original accessories.',
         brand: 'Samsung',
         price: 219999.00,
         storage: '256GB',
-        condition: 'Used',
+        condition: 'Pre-Owned',
         color: 'Cream',
         ram: '8GB',
         quantity: 8,
-        imageUrl: '/images/galaxys23used.jpg',
+        imageUrl: '/uploads/products/samsung-galaxy-s23-pre-owned.jpg',
         sku: 'SAM-S23-256-CR-U'
       }
     ];

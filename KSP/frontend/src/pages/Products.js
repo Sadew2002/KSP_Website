@@ -351,7 +351,7 @@ const Products = () => {
                   <div className="relative h-64 bg-gradient-to-br from-gray-100 to-gray-50 overflow-hidden">
                     <img 
                       src={product.imageUrl && product.imageUrl.trim() !== ''
-                        ? (product.imageUrl.startsWith('http') ? product.imageUrl : `http://localhost:5000${product.imageUrl}`)
+                        ? product.imageUrl
                         : 'https://via.placeholder.com/300x300?text=Phone'
                       } 
                       alt={product.name}
@@ -430,7 +430,7 @@ const Products = () => {
                   <div className="w-48 h-48 bg-gradient-to-br from-gray-100 to-gray-50 flex-shrink-0 relative overflow-hidden">
                     <img 
                       src={product.imageUrl && product.imageUrl.trim() !== ''
-                        ? (product.imageUrl.startsWith('http') ? product.imageUrl : `http://localhost:5000${product.imageUrl}`)
+                        ? product.imageUrl
                         : 'https://via.placeholder.com/200x200?text=Phone'
                       } 
                       alt={product.name}

@@ -106,6 +106,12 @@ const AdminDashboard = () => {
       return;
     }
 
+    // Check if product name is filled
+    if (!productForm.name || productForm.name.trim() === '') {
+      setError('Please enter the product name first before uploading an image.');
+      return;
+    }
+
     // Show preview
     const reader = new FileReader();
     reader.onload = (e) => setImagePreview(e.target.result);
@@ -118,6 +124,7 @@ const AdminDashboard = () => {
     try {
       const formData = new FormData();
       formData.append('image', file);
+      formData.append('productName', productForm.name); // Send product name for filename
       
       const response = await api.post('/upload/product-image', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
