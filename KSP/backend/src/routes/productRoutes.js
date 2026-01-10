@@ -19,7 +19,9 @@ router.get('/', async (req, res) => {
       maxPrice,
       search,
       sortBy = 'createdAt',
-      sortOrder = 'DESC'
+      sortOrder = 'DESC',
+      isNewArrival,
+      isPremiumDeal
     } = req.query;
 
     const where = { isActive: true };
@@ -30,6 +32,14 @@ router.get('/', async (req, res) => {
 
     if (condition) {
       where.condition = condition;
+    }
+
+    if (isNewArrival === 'true') {
+      where.isNewArrival = true;
+    }
+
+    if (isPremiumDeal === 'true') {
+      where.isPremiumDeal = true;
     }
 
     if (minPrice || maxPrice) {

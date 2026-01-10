@@ -9,14 +9,74 @@ import {
   ChevronLeft, 
   ChevronRight,
   Zap,
-  Gift
+  Gift,
+  Tag
 } from 'lucide-react';
+import api from '../services/api';
 
 const Home = () => {
   const [isHovered, setIsHovered] = useState(false);
+  const [newArrivals, setNewArrivals] = useState([]);
+  const [loadingArrivals, setLoadingArrivals] = useState(true);
+  const [premiumDeals, setPremiumDeals] = useState([]);
+  const [loadingDeals, setLoadingDeals] = useState(true);
+
+  // Get the backend URL for images
+  const getImageUrl = (imageUrl) => {
+    if (!imageUrl) return null;
+    if (imageUrl.startsWith('http')) return imageUrl;
+    const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+    // Remove /api from baseUrl if it exists for image paths
+    const serverUrl = baseUrl.replace('/api', '');
+    return `${serverUrl}${imageUrl}`;
+  };
 
   useEffect(() => {
-    // Optional: Add any video-related logic here
+    // Fetch new arrivals
+    const fetchNewArrivals = async () => {
+      try {
+        const response = await api.get('/products?isNewArrival=true&limit=4');
+        console.log('🔍 New Arrivals API Response:', response.data);
+        console.log('📦 Products found:', response.data.products?.length || 0);
+        if (response.data.products?.length > 0) {
+          console.log('🖼️ First product image URL:', response.data.products[0].imageUrl);
+          console.log('🖼️ Constructed URL:', getImageUrl(response.data.products[0].imageUrl));
+        }
+        if (response.data.products?.length === 0) {
+          console.warn('⚠️ No products marked as NEW ARRIVAL in database!');
+          console.warn('👉 Go to Admin Panel → Add/Edit Product → Check "Mark as New Arrival"');
+        }
+        setNewArrivals(response.data.products || []);
+      } catch (error) {
+        console.error('❌ Error fetching new arrivals:', error);
+        // Use fallback data if API fails
+        setNewArrivals([]);
+      } finally {
+        setLoadingArrivals(false);
+      }
+    };
+
+    // Fetch premium deals (budget phones)
+    const fetchPremiumDeals = async () => {
+      try {
+        const response = await api.get('/products?isPremiumDeal=true&limit=4');
+        console.log('🏷️ Premium Deals API Response:', response.data);
+        console.log('📦 Premium deals found:', response.data.products?.length || 0);
+        if (response.data.products?.length === 0) {
+          console.warn('⚠️ No products marked as PREMIUM DEAL in database!');
+          console.warn('👉 Go to Admin Panel → Add/Edit Product → Check "Premium Deal"');
+        }
+        setPremiumDeals(response.data.products || []);
+      } catch (error) {
+        console.error('❌ Error fetching premium deals:', error);
+        setPremiumDeals([]);
+      } finally {
+        setLoadingDeals(false);
+      }
+    };
+    
+    fetchNewArrivals();
+    fetchPremiumDeals();
   }, []);
 
   return (
@@ -78,8 +138,238 @@ const Home = () => {
         </div>
       </section>
 
+      {/* --- NEW ARRIVALS SECTION --- */}
+      <section className="container mx-auto px-6 py-16 mt-16">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-4">
+          <div>
+            <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-gray-900">
+              New Arrivals
+            </h2>
+            <p className="text-gray-500 mt-2">
+              Check out the latest additions to our collection.
+            </p>
+          </div>
+          <Link 
+            to="/products?sort=newest" 
+            className="group inline-flex items-center gap-2 text-ksp-red font-semibold hover:gap-3 transition-all duration-300"
+          >
+            <span>View all new arrivals</span>
+            <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform duration-300" />
+          </Link>
+        </div>
+
+        {/* Products Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {loadingArrivals ? (
+            // Loading skeleton
+            [...Array(4)].map((_, i) => (
+              <div key={i} className="relative overflow-hidden rounded-2xl bg-white shadow-lg animate-pulse">
+                <div className="h-64 bg-gray-200"></div>
+                <div className="p-5 space-y-3">
+                  <div className="h-3 bg-gray-200 rounded w-1/4"></div>
+                  <div className="h-5 bg-gray-200 rounded w-3/4"></div>
+                  <div className="h-6 bg-gray-200 rounded w-1/2 mt-4"></div>
+                </div>
+              </div>
+            ))
+          ) : newArrivals.length > 0 ? (
+            newArrivals.map((product, i) => (
+              <Link 
+                key={product.id || i} 
+                to={`/products/${product.id}`} 
+                className="group relative overflow-hidden rounded-2xl bg-white cursor-pointer shadow-lg hover:shadow-2xl transition-all duration-400 transform hover:-translate-y-1"
+              >
+                {/* Product Image Container */}
+                <div className="relative h-64 overflow-hidden bg-white flex items-center justify-center">
+                  {product.imageUrl ? (
+                    <img 
+                      src={getImageUrl(product.imageUrl)} 
+                      alt={product.name}
+                      className="w-full h-full object-scale-down p-4 transform group-hover:scale-105 transition-transform duration-500"
+                      crossOrigin="anonymous"
+                      onError={(e) => {
+                        console.warn('🖼️ Image failed to load:', product.imageUrl, '- Using fallback');
+                        e.target.style.display = 'none';
+                        const fallback = document.createElement('div');
+                        fallback.className = 'w-full h-full flex flex-col items-center justify-center bg-gray-100 p-4';
+                        fallback.innerHTML = `
+                          <svg class="w-16 h-16 text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                          </svg>
+                          <span class="text-gray-500 text-sm font-semibold">${product.brand}</span>
+                          <span class="text-gray-400 text-xs text-center mt-1">${product.name}</span>
+                        `;
+                        e.target.parentElement.insertBefore(fallback, e.target);
+                      }}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center bg-gray-100 p-4">
+                      <Smartphone size={64} className="text-gray-300 mb-3" />
+                      <span className="text-gray-500 text-sm font-semibold">{product.brand}</span>
+                      <span className="text-gray-400 text-xs text-center mt-1">{product.name}</span>
+                    </div>
+                  )}
+                  
+                  {/* NEW Badge */}
+                  <div className="absolute top-4 right-4 z-10">
+                    <span className="px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-ksp-red text-white shadow-md">
+                      New
+                    </span>
+                  </div>
+                </div>
+
+                {/* Product Info */}
+                <div className="p-5">
+                  {/* Brand */}
+                  <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
+                    {product.brand}
+                  </span>
+                  
+                  {/* Product Name */}
+                  <h3 className="text-lg font-bold text-gray-900 mt-1 mb-3 leading-tight group-hover:text-ksp-red transition-colors duration-300 line-clamp-1">
+                    {product.name}
+                  </h3>
+                  
+                  {/* Price & Action */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-xl font-black text-ksp-red">
+                      Rs. {parseFloat(product.price).toLocaleString()}
+                    </span>
+                    <div className="w-9 h-9 flex items-center justify-center bg-gray-100 group-hover:bg-ksp-red rounded-full transition-all duration-300">
+                      <ArrowRight size={16} className="text-gray-500 group-hover:text-white transition-colors duration-300" />
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            ))
+          ) : (
+            // Fallback when no new arrivals
+            <div className="col-span-full text-center py-16">
+              <Smartphone size={48} className="text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-500">No new arrivals at the moment. Check back soon!</p>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* --- PREMIUM DEALS SECTION --- */}
+      <section className="container mx-auto px-6 py-16">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-4">
+          <div>
+            <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-gray-900">
+              Premium Deals
+            </h2>
+            <p className="text-gray-500 mt-2">
+              Budget-friendly phones with premium features.
+            </p>
+          </div>
+          <Link 
+            to="/products?sort=price_asc" 
+            className="group inline-flex items-center gap-2 text-green-600 font-semibold hover:gap-3 transition-all duration-300"
+          >
+            <span>View all deals</span>
+            <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform duration-300" />
+          </Link>
+        </div>
+
+        {/* Products Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {loadingDeals ? (
+            // Loading skeleton
+            [...Array(4)].map((_, i) => (
+              <div key={i} className="relative overflow-hidden rounded-2xl bg-white shadow-lg animate-pulse">
+                <div className="h-64 bg-gray-200"></div>
+                <div className="p-5 space-y-3">
+                  <div className="h-3 bg-gray-200 rounded w-1/4"></div>
+                  <div className="h-5 bg-gray-200 rounded w-3/4"></div>
+                  <div className="h-6 bg-gray-200 rounded w-1/2 mt-4"></div>
+                </div>
+              </div>
+            ))
+          ) : premiumDeals.length > 0 ? (
+            premiumDeals.map((product, i) => (
+              <Link 
+                key={product.id || i} 
+                to={`/products/${product.id}`} 
+                className="group relative overflow-hidden rounded-2xl bg-white cursor-pointer shadow-lg hover:shadow-2xl transition-all duration-400 transform hover:-translate-y-1"
+              >
+                {/* Product Image Container */}
+                <div className="relative h-64 overflow-hidden bg-white flex items-center justify-center">
+                  {product.imageUrl ? (
+                    <img 
+                      src={getImageUrl(product.imageUrl)} 
+                      alt={product.name}
+                      className="w-full h-full object-scale-down p-4 transform group-hover:scale-105 transition-transform duration-500"
+                      crossOrigin="anonymous"
+                      onError={(e) => {
+                        console.warn('🖼️ Image failed to load:', product.imageUrl, '- Using fallback');
+                        e.target.style.display = 'none';
+                        const fallback = document.createElement('div');
+                        fallback.className = 'w-full h-full flex flex-col items-center justify-center bg-gray-100 p-4';
+                        fallback.innerHTML = `
+                          <svg class="w-16 h-16 text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                          </svg>
+                          <span class="text-gray-500 text-sm font-semibold">${product.brand}</span>
+                          <span class="text-gray-400 text-xs text-center mt-1">${product.name}</span>
+                        `;
+                        e.target.parentElement.insertBefore(fallback, e.target);
+                      }}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center bg-gray-100 p-4">
+                      <Smartphone size={64} className="text-gray-300 mb-3" />
+                      <span className="text-gray-500 text-sm font-semibold">{product.brand}</span>
+                      <span className="text-gray-400 text-xs text-center mt-1">{product.name}</span>
+                    </div>
+                  )}
+                  
+                  {/* DEAL Badge */}
+                  <div className="absolute top-4 right-4 z-10">
+                    <span className="px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-green-500 text-white shadow-md flex items-center gap-1">
+                      <Tag size={12} /> Deal
+                    </span>
+                  </div>
+                </div>
+
+                {/* Product Info */}
+                <div className="p-5">
+                  {/* Brand */}
+                  <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
+                    {product.brand}
+                  </span>
+                  
+                  {/* Product Name */}
+                  <h3 className="text-lg font-bold text-gray-900 mt-1 mb-3 leading-tight group-hover:text-green-600 transition-colors duration-300 line-clamp-1">
+                    {product.name}
+                  </h3>
+                  
+                  {/* Price & Action */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-xl font-black text-green-600">
+                      Rs. {parseFloat(product.price).toLocaleString()}
+                    </span>
+                    <div className="w-9 h-9 flex items-center justify-center bg-gray-100 group-hover:bg-green-500 rounded-full transition-all duration-300">
+                      <ArrowRight size={16} className="text-gray-500 group-hover:text-white transition-colors duration-300" />
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            ))
+          ) : (
+            // Fallback when no premium deals
+            <div className="col-span-full text-center py-16">
+              <Tag size={48} className="text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-500">No premium deals available at the moment. Check back soon!</p>
+            </div>
+          )}
+        </div>
+      </section>
+
       {/* --- CATEGORIES: BENTO GRID --- */}
-      <section className="container mx-auto px-6 py-24 rounded-3xl mt-20">
+      <section className="container mx-auto px-6 py-24 rounded-3xl mt-12">
         <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-4">
           <div>
             <h2 className="text-4xl font-bold tracking-tight text-gray-900">Browse Collections</h2>
@@ -174,15 +464,15 @@ const Home = () => {
             { name: "Samsung", logo: "/images/brands/samsung-logo.png", bg: "#ffffff" },
             { name: "Xiaomi", logo: "/images/brands/xiaomi-logo.png", bg: "#ffffff" },
             { name: "Infinix", logo: "/images/brands/infinix-logo.png", bg: "#000000" },
-            { name: "Huawei", logo: "/images/brands/huawei-logo.png", bg: "#ffffff" },
-            { name: "POCO", logo: "/images/brands/poco-logo.png", bg: "#FFD401" },
-            { name: "Realme", logo: "/images/brands/realme-logo.png", bg: "#FFC916" },
+            { name: "Blackview", logo: "/images/brands/blackview-logo.png", bg: "#ffffff" },
+            { name: "Honor", logo: "/images/brands/honor-logo.png", bg: "#ffffff" },
+            { name: "Nokia", logo: "/images/brands/nokia-logo.png", bg: "#ffffff" },
             { name: "Vivo", logo: "/images/brands/vivo-logo.png", bg: "#415FFF" },
             { name: "JBL", logo: "/images/brands/jbl-logo.png", bg: "#DC381D" },
             { name: "Soundcore", logo: "/images/brands/soundcore-logo.png", bg: "#ffffff" }
           ].map((brand, i) => (
             <div key={i} className="group h-32 rounded-2xl overflow-hidden cursor-pointer transition-all duration-500 hover:scale-105 hover:shadow-2xl border border-gray-200 hover:border-ksp-red/50" style={{ backgroundColor: brand.bg }}>
-              <img src={brand.logo} alt={brand.name} className="w-full h-full object-contain p-4 group-hover:scale-110 transition-transform duration-500" />
+              <img src={brand.logo} alt={brand.name} className="w-full h-full object-scale-down p-4 group-hover:scale-110 transition-transform duration-500" />
             </div>
           ))}
         </div>

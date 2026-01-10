@@ -90,7 +90,9 @@ router.post('/', async (req, res) => {
       ram,
       quantity = 0,
       imageUrl,
-      sku
+      sku,
+      isNewArrival = false,
+      isPremiumDeal = false
     } = req.body;
 
     console.log('Creating product:', req.body);
@@ -121,7 +123,9 @@ router.post('/', async (req, res) => {
       quantity: parseInt(quantity) || 0,
       imageUrl,
       sku,
-      isActive: true
+      isActive: true,
+      isNewArrival: Boolean(isNewArrival),
+      isPremiumDeal: Boolean(isPremiumDeal)
     });
 
     res.status(201).json({
@@ -131,6 +135,21 @@ router.post('/', async (req, res) => {
     });
   } catch (error) {
     console.error('Error creating product:', error);
+    console.error('Error details:', error.name, error.message);
+    if (error.errors) {
+      console.error('Validation errors:', error.errors.map(e => ({ field: e.path, message: e.message })));
+    }
+    
+    // Handle Sequelize validation errors
+    if (error.name === 'SequelizeValidationError') {
+      const validationErrors = error.errors.map(e => `${e.path}: ${e.message}`).join(', ');
+      return res.status(400).json({ 
+        success: false, 
+        message: `Validation error: ${validationErrors}`,
+        errors: error.errors 
+      });
+    }
+    
     res.status(500).json({ success: false, message: 'Error creating product', error: error.message });
   }
 });
@@ -159,7 +178,9 @@ router.put('/:id', async (req, res) => {
       quantity,
       imageUrl,
       sku,
-      isActive
+      isActive,
+      isNewArrival,
+      isPremiumDeal
     } = req.body;
 
     // Check if new SKU conflicts with another product
@@ -182,7 +203,9 @@ router.put('/:id', async (req, res) => {
       quantity: quantity ?? product.quantity,
       imageUrl: imageUrl ?? product.imageUrl,
       sku: sku ?? product.sku,
-      isActive: isActive ?? product.isActive
+      isActive: isActive ?? product.isActive,
+      isNewArrival: isNewArrival !== undefined ? Boolean(isNewArrival) : product.isNewArrival,
+      isPremiumDeal: isPremiumDeal !== undefined ? Boolean(isPremiumDeal) : product.isPremiumDeal
     });
 
     res.json({

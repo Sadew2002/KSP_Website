@@ -85,7 +85,7 @@ const AdminDashboard = () => {
   // Product form state
   const [productForm, setProductForm] = useState({
     name: '', description: '', brand: '', price: '', storage: '128GB',
-    condition: 'Brand New', color: '', ram: '8GB', quantity: 0, imageUrl: '', sku: ''
+    condition: 'Brand New', color: '', ram: '8GB', quantity: 0, imageUrl: '', sku: '', isNewArrival: false, isPremiumDeal: false
   });
 
   // Handle image upload
@@ -97,22 +97,25 @@ const AdminDashboard = () => {
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
       setError('Invalid file type. Only JPEG, JPG, PNG and WebP are allowed.');
+      setTimeout(() => setError(''), 3000);
       return;
     }
 
     // Validate file size (5MB)
     if (file.size > 5 * 1024 * 1024) {
       setError('File too large. Maximum size is 5MB.');
+      setTimeout(() => setError(''), 3000);
       return;
     }
 
     // Check if product name is filled
     if (!productForm.name || productForm.name.trim() === '') {
       setError('Please enter the product name first before uploading an image.');
+      setTimeout(() => setError(''), 3000);
       return;
     }
 
-    // Show preview
+    // Show preview immediately
     const reader = new FileReader();
     reader.onload = (e) => setImagePreview(e.target.result);
     reader.readAsDataURL(file);
@@ -124,21 +127,36 @@ const AdminDashboard = () => {
     try {
       const formData = new FormData();
       formData.append('image', file);
-      formData.append('productName', productForm.name); // Send product name for filename
+      formData.append('productName', productForm.name);
+      
+      console.log('📤 Uploading image:', file.name, 'Size:', (file.size / 1024).toFixed(2) + 'KB');
       
       const response = await api.post('/upload/product-image', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: { 
+          'Content-Type': 'multipart/form-data'
+        },
+        timeout: 30000, // 30 second timeout
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          console.log('Upload progress:', percentCompleted + '%');
+        }
       });
+      
+      console.log('✅ Upload response:', response.data);
       
       if (response.data.success) {
         setProductForm(prev => ({ ...prev, imageUrl: response.data.imageUrl }));
-        setSuccess('Image uploaded successfully!');
-        setTimeout(() => setSuccess(''), 2000);
+        setSuccess('Image uploaded successfully! URL: ' + response.data.imageUrl);
+        setTimeout(() => setSuccess(''), 3000);
+      } else {
+        throw new Error(response.data.message || 'Upload failed');
       }
     } catch (err) {
-      console.error('Upload error:', err);
-      setError(err.response?.data?.message || 'Error uploading image');
+      console.error('❌ Upload error:', err);
+      const errorMsg = err.response?.data?.message || err.message || 'Error uploading image';
+      setError(errorMsg);
       setImagePreview(null);
+      setTimeout(() => setError(''), 5000);
     } finally {
       setUploadingImage(false);
     }
@@ -209,7 +227,8 @@ const AdminDashboard = () => {
         quantity: parseInt(productForm.quantity) || 0
       };
       console.log('Creating product:', dataToSend);
-      await api.post('/admin/products', dataToSend);
+      const response = await api.post('/admin/products', dataToSend);
+      console.log('Create response:', response.data);
       setSuccess('Product created successfully!');
       setShowAddProduct(false);
       resetForm();
@@ -217,7 +236,9 @@ const AdminDashboard = () => {
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
       console.error('Create error:', err.response?.data || err);
-      setError(err.response?.data?.message || 'Error creating product');
+      console.error('Full error:', err);
+      const errorMsg = err.response?.data?.message || err.message || 'Error creating product';
+      setError(errorMsg);
       setTimeout(() => setError(''), 5000);
     } finally {
       setLoading(false);
@@ -264,10 +285,31 @@ const AdminDashboard = () => {
   const resetForm = () => {
     setProductForm({
       name: '', description: '', brand: '', price: '', storage: '128GB',
-      condition: 'Brand New', color: '', ram: '8GB', quantity: 0, imageUrl: '', sku: ''
+      condition: 'Brand New', color: '', ram: '8GB', quantity: 0, imageUrl: '', sku: '', isNewArrival: false, isPremiumDeal: false
     });
     setSelectedProduct(null);
     setImagePreview(null);
+  };
+
+  // Auto-generate SKU based on product details
+  const generateSKU = () => {
+    const { brand, name, storage } = productForm;
+    if (!brand || !name) {
+      setError('Please enter brand and product name first');
+      setTimeout(() => setError(''), 3000);
+      return;
+    }
+    
+    // Generate SKU format: BRAND-MODEL-STORAGE-RANDOM
+    const brandCode = brand.substring(0, 3).toUpperCase();
+    const nameCode = name.split(' ').map(w => w.charAt(0)).join('').substring(0, 4).toUpperCase();
+    const storageCode = storage.replace('GB', '');
+    const randomCode = Math.floor(1000 + Math.random() * 9000);
+    
+    const generatedSKU = `${brandCode}-${nameCode}-${storageCode}-${randomCode}`;
+    setProductForm({...productForm, sku: generatedSKU});
+    setSuccess(`SKU generated: ${generatedSKU}`);
+    setTimeout(() => setSuccess(''), 3000);
   };
 
   const openEditModal = (product) => {
@@ -277,7 +319,7 @@ const AdminDashboard = () => {
       name: product.name, description: product.description || '', brand: product.brand,
       price: product.price, storage: product.storage, condition: product.condition,
       color: product.color || '', ram: product.ram || '', quantity: product.quantity,
-      imageUrl: product.imageUrl || '', sku: product.sku
+      imageUrl: product.imageUrl || '', sku: product.sku, isNewArrival: product.isNewArrival || false, isPremiumDeal: product.isPremiumDeal || false
     });
     setShowEditProduct(true);
   };
@@ -1178,7 +1220,12 @@ const AdminDashboard = () => {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">SKU *</label>
-                <input type="text" value={productForm.sku} onChange={(e) => setProductForm({...productForm, sku: e.target.value})} placeholder="e.g. IPH-15PM-256-BLK" className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20" />
+                <div className="flex gap-2">
+                  <input type="text" value={productForm.sku} onChange={(e) => setProductForm({...productForm, sku: e.target.value})} placeholder="e.g. IPH-15PM-256-BLK" className="flex-1 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20" />
+                  <button type="button" onClick={generateSKU} className="px-4 py-3 bg-gray-100 hover:bg-gray-200 rounded-xl font-medium text-sm flex items-center gap-2">
+                    <Sparkles size={16} /> Generate
+                  </button>
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -1219,6 +1266,37 @@ const AdminDashboard = () => {
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Description</label>
                 <textarea rows={3} value={productForm.description} onChange={(e) => setProductForm({...productForm, description: e.target.value})} placeholder="Product description..." className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20 resize-none"></textarea>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Condition</label>
+                  <select value={productForm.condition} onChange={(e) => setProductForm({...productForm, condition: e.target.value})} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20">
+                    <option value="Brand New">Brand New</option>
+                    <option value="Pre-Owned">Pre-Owned</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="flex items-center gap-3 px-4 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={productForm.isNewArrival} 
+                      onChange={(e) => setProductForm({...productForm, isNewArrival: e.target.checked})}
+                      className="w-5 h-5 text-ksp-red rounded focus:ring-2 focus:ring-ksp-red/20"
+                    />
+                    <span className="text-sm font-semibold text-gray-700">New Arrival</span>
+                  </label>
+                </div>
+                <div>
+                  <label className="flex items-center gap-3 px-4 py-3 border border-green-200 rounded-xl hover:bg-green-50 transition-colors cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={productForm.isPremiumDeal} 
+                      onChange={(e) => setProductForm({...productForm, isPremiumDeal: e.target.checked})}
+                      className="w-5 h-5 text-green-600 rounded focus:ring-2 focus:ring-green-500/20"
+                    />
+                    <span className="text-sm font-semibold text-gray-700">Premium Deal</span>
+                  </label>
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Product Image</label>
@@ -1337,6 +1415,37 @@ const AdminDashboard = () => {
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Description</label>
                 <textarea rows={3} value={productForm.description} onChange={(e) => setProductForm({...productForm, description: e.target.value})} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20 resize-none"></textarea>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Condition</label>
+                  <select value={productForm.condition} onChange={(e) => setProductForm({...productForm, condition: e.target.value})} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20">
+                    <option value="Brand New">Brand New</option>
+                    <option value="Pre-Owned">Pre-Owned</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="flex items-center gap-3 px-4 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={productForm.isNewArrival} 
+                      onChange={(e) => setProductForm({...productForm, isNewArrival: e.target.checked})}
+                      className="w-5 h-5 text-ksp-red rounded focus:ring-2 focus:ring-ksp-red/20"
+                    />
+                    <span className="text-sm font-semibold text-gray-700">New Arrival</span>
+                  </label>
+                </div>
+                <div>
+                  <label className="flex items-center gap-3 px-4 py-3 border border-green-200 rounded-xl hover:bg-green-50 transition-colors cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={productForm.isPremiumDeal} 
+                      onChange={(e) => setProductForm({...productForm, isPremiumDeal: e.target.checked})}
+                      className="w-5 h-5 text-green-600 rounded focus:ring-2 focus:ring-green-500/20"
+                    />
+                    <span className="text-sm font-semibold text-gray-700">Premium Deal</span>
+                  </label>
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Product Image</label>

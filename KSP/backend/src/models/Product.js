@@ -36,6 +36,7 @@ const Product = sequelize.define('Product', {
   storage: {
     type: DataTypes.STRING,
     allowNull: false,
+    defaultValue: '128GB',
     comment: 'e.g., 64GB, 128GB, 256GB'
   },
   condition: {
@@ -67,6 +68,16 @@ const Product = sequelize.define('Product', {
   isActive: {
     type: DataTypes.BOOLEAN,
     defaultValue: true
+  },
+  isNewArrival: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+    comment: 'Mark product as new arrival for homepage display'
+  },
+  isPremiumDeal: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+    comment: 'Mark product as premium deal (budget phones) for homepage display'
   },
   sku: {
     type: DataTypes.STRING,

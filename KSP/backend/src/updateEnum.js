@@ -19,10 +19,23 @@ async function updateEnum() {
     await sequelize.authenticate();
     console.log('✓ Database connected');
 
-    // First, update existing data to use new values
-    console.log('Updating existing products...');
-    await sequelize.query(`UPDATE "Products" SET condition = 'Brand New' WHERE condition = 'New'`);
-    await sequelize.query(`UPDATE "Products" SET condition = 'Pre-Owned' WHERE condition = 'Used'`);
+    // Check current enum values
+    console.log('Checking current ENUM values...');
+    const result = await sequelize.query(`
+      SELECT unnest(enum_range(NULL::"enum_Products_condition")) AS condition_value;
+    `);
+    console.log('Current ENUM values:', result[0]);
+
+    // Skip data update if values don't exist
+    console.log('Checking for old values...');
+    const oldValues = await sequelize.query(`SELECT COUNT(*) FROM "Products" WHERE condition IN ('New', 'Used')`);
+    if (oldValues[0][0].count > 0) {
+      console.log('Updating existing products...');
+      await sequelize.query(`UPDATE "Products" SET condition = 'Brand New' WHERE condition = 'New'`);
+      await sequelize.query(`UPDATE "Products" SET condition = 'Pre-Owned' WHERE condition = 'Used'`);
+    } else {
+      console.log('No old values found, skipping data update');
+    }
     
     // Create a new ENUM type with the new values
     console.log('Creating new ENUM type...');

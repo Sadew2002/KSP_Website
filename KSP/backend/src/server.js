@@ -9,12 +9,30 @@ const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
 
-// Security Middleware
-app.use(helmet());
+// Security Middleware - Allow images to load
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  crossOriginEmbedderPolicy: false,
+}));
 
-// CORS Configuration
+// CORS Configuration - Allow multiple origins
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  process.env.CORS_ORIGIN
+].filter(Boolean);
+
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  origin: function(origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(null, true); // Allow all origins in development
+    }
+  },
   credentials: true,
   optionsSuccessStatus: 200
 }));
@@ -74,10 +92,19 @@ sequelize.authenticate()
 //     });
 // }
 
-// Serve static files (uploaded images)
+// Serve static files (uploaded images) with CORS headers
 const path = require('path');
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
-app.use('/images', express.static(path.join(__dirname, '../public/images')));
+app.use('/uploads', (req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Cross-Origin-Resource-Policy', 'cross-origin');
+  next();
+}, express.static(path.join(__dirname, '../uploads')));
+
+app.use('/images', (req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Cross-Origin-Resource-Policy', 'cross-origin');
+  next();
+}, express.static(path.join(__dirname, '../public/images')));
 
 // API Routes
 // Authentication Routes (public)
