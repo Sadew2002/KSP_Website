@@ -25,16 +25,16 @@ export const productService = {
 
 export const cartService = {
   getCart: () => api.get('/cart'),
-  addToCart: (productId, quantity) => api.post('/cart/add', { productId, quantity }),
-  updateCartItem: (cartItemId, quantity) => api.put(`/cart/update/${cartItemId}`, { quantity }),
-  removeFromCart: (cartItemId) => api.delete(`/cart/remove/${cartItemId}`),
-  clearCart: () => api.delete('/cart/clear'),
+  addToCart: (productId, quantity) => api.post('/cart', { productId, quantity }),
+  updateCartItem: (productId, quantity) => api.put(`/cart/${productId}`, { quantity }),
+  removeFromCart: (productId) => api.delete(`/cart/${productId}`),
+  clearCart: () => api.delete('/cart'),
 };
 
 export const orderService = {
   getOrders: () => api.get('/orders'),
   getOrderById: (orderId) => api.get(`/orders/${orderId}`),
-  createOrder: (orderData) => api.post('/orders/checkout', orderData),
+  createOrder: (orderData) => api.post('/orders', orderData),
   cancelOrder: (orderId) => api.put(`/orders/${orderId}/cancel`),
 };
 

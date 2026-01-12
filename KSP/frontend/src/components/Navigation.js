@@ -12,11 +12,11 @@ const Navigation = () => {
 
   // Categories for dropdowns
   const categories = [
-    { name: 'Phones', slug: 'phones' },
-    { name: 'Tablets', slug: 'tablets' },
-    { name: 'Earbuds', slug: 'earbuds' },
-    { name: 'Smartwatches', slug: 'smartwatches' },
-    { name: 'Accessories', slug: 'accessories' },
+    { name: 'Phones', value: 'Phones' },
+    { name: 'Tablets', value: 'Tablets' },
+    { name: 'Earbuds', value: 'Earbuds' },
+    { name: 'Smartwatches', value: 'Smartwatches' },
+    { name: 'Accessories', value: 'Accessories' },
   ];
 
   // Close dropdown when clicking outside
@@ -87,8 +87,8 @@ const Navigation = () => {
                 <div className="py-2">
                   {categories.map((category) => (
                     <Link
-                      key={category.slug}
-                      to={`/products?condition=Brand New&category=${category.slug}`}
+                      key={category.value}
+                      to={`/products?condition=Brand New&productType=${category.value}`}
                       className="block px-4 py-2.5 text-gray-600 hover:bg-ksp-red hover:text-white transition-colors duration-200"
                     >
                       {category.name}
@@ -120,8 +120,8 @@ const Navigation = () => {
                 <div className="py-2">
                   {categories.map((category) => (
                     <Link
-                      key={category.slug}
-                      to={`/products?condition=Pre-Owned&category=${category.slug}`}
+                      key={category.value}
+                      to={`/products?condition=Pre-Owned&productType=${category.value}`}
                       className="block px-4 py-2.5 text-gray-600 hover:bg-ksp-red hover:text-white transition-colors duration-200"
                     >
                       {category.name}
@@ -234,8 +234,8 @@ const Navigation = () => {
                   <div className="ml-4 mt-1 space-y-1 border-l-2 border-ksp-red/30 pl-3">
                     {categories.map((category) => (
                       <Link
-                        key={category.slug}
-                        to={`/products?condition=Brand New&category=${category.slug}`}
+                        key={category.value}
+                        to={`/products?condition=Brand New&productType=${category.value}`}
                         className="block px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-200 hover:text-ksp-red transition-colors duration-300"
                         onClick={toggleMenu}
                       >
@@ -270,8 +270,8 @@ const Navigation = () => {
                   <div className="ml-4 mt-1 space-y-1 border-l-2 border-ksp-red/30 pl-3">
                     {categories.map((category) => (
                       <Link
-                        key={category.slug}
-                        to={`/products?condition=Pre-Owned&category=${category.slug}`}
+                        key={category.value}
+                        to={`/products?condition=Pre-Owned&productType=${category.value}`}
                         className="block px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-200 hover:text-ksp-red transition-colors duration-300"
                         onClick={toggleMenu}
                       >

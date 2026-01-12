@@ -17,23 +17,16 @@ const storage = multer.diskStorage({
     cb(null, uploadPath);
   },
   filename: (req, file, cb) => {
-    // Use product name from request, or generate unique name if not provided
-    const productName = req.body.productName;
+    // Always use timestamp + random suffix for initial upload
+    // This ensures no overwrites during upload process
+    // File will be renamed to use product ID after product is created
     const ext = path.extname(file.originalname).toLowerCase();
+    const timestamp = Date.now();
+    const random = Math.round(Math.random() * 1E9);
+    const filename = `temp-${timestamp}-${random}${ext}`;
     
-    if (productName) {
-      // Sanitize product name for filename (remove special characters, replace spaces with hyphens)
-      const sanitizedName = productName
-        .toLowerCase()
-        .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
-        .trim()
-        .replace(/\s+/g, '-'); // Replace spaces with hyphens
-      cb(null, sanitizedName + ext);
-    } else {
-      // Fallback to timestamp if no product name provided
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-      cb(null, 'product-' + uniqueSuffix + ext);
-    }
+    console.log(`📤 Receiving upload: ${file.originalname} → ${filename}`);
+    cb(null, filename);
   }
 });
 
@@ -58,7 +51,8 @@ const upload = multer({
 
 /**
  * POST /api/upload/product-image
- * Upload a product image
+ * Upload a product image (temporary upload)
+ * Image will be renamed after product is created
  */
 router.post('/product-image', upload.single('image'), (req, res) => {
   try {
@@ -71,6 +65,13 @@ router.post('/product-image', upload.single('image'), (req, res) => {
 
     // Return the URL path to access the image from backend uploads
     const imageUrl = `/uploads/products/${req.file.filename}`;
+    
+    console.log('✅ Image uploaded:', {
+      filename: req.file.filename,
+      originalName: req.file.originalname,
+      size: req.file.size,
+      path: imageUrl
+    });
     
     res.json({
       success: true,
@@ -88,8 +89,72 @@ router.post('/product-image', upload.single('image'), (req, res) => {
   }
 });
 
+/**
+ * POST /api/upload/rename-image
+ * Rename uploaded image after product is created
+ * This creates unique filenames based on product ID
+ */
+router.post('/rename-image', (req, res) => {
+  try {
+    const { oldFilename, productId } = req.body;
+
+    if (!oldFilename || !productId) {
+      return res.status(400).json({
+        success: false,
+        message: 'oldFilename and productId are required'
+      });
+    }
+
+    const uploadPath = path.join(__dirname, '../../uploads/products');
+    const oldPath = path.join(uploadPath, oldFilename);
+    
+    // Check if old file exists
+    if (!fs.existsSync(oldPath)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Original image file not found'
+      });
+    }
+
+    // Get file extension
+    const ext = path.extname(oldFilename);
+    
+    // Create new filename with product ID
+    const newFilename = `product-${productId}${ext}`;
+    const newPath = path.join(uploadPath, newFilename);
+
+    // Rename the file
+    fs.renameSync(oldPath, newPath);
+
+    const imageUrl = `/uploads/products/${newFilename}`;
+
+    console.log('✅ Image renamed:', {
+      from: oldFilename,
+      to: newFilename,
+      productId: productId,
+      url: imageUrl
+    });
+
+    res.json({
+      success: true,
+      message: 'Image renamed successfully',
+      imageUrl: imageUrl,
+      filename: newFilename
+    });
+  } catch (error) {
+    console.error('Rename image error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error renaming image',
+      error: error.message
+    });
+  }
+});
+
 // Error handling for multer
 router.use((error, req, res, next) => {
+  console.error('Upload middleware error:', error);
+  
   if (error instanceof multer.MulterError) {
     if (error.code === 'LIMIT_FILE_SIZE') {
       return res.status(400).json({
@@ -97,10 +162,32 @@ router.use((error, req, res, next) => {
         message: 'File too large. Maximum size is 5MB.'
       });
     }
+    if (error.code === 'LIMIT_PART_COUNT') {
+      return res.status(400).json({
+        success: false,
+        message: 'Too many parts'
+      });
+    }
+    if (error.code === 'LIMIT_FILE_COUNT') {
+      return res.status(400).json({
+        success: false,
+        message: 'Too many files'
+      });
+    }
   }
-  res.status(400).json({
+  
+  // Handle file filter errors (invalid file type)
+  if (error.message && error.message.includes('Invalid file type')) {
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid file type. Only JPEG, JPG, PNG and WebP are allowed.'
+    });
+  }
+  
+  res.status(500).json({
     success: false,
-    message: error.message
+    message: error.message || 'File upload error',
+    error: error.message
   });
 });
 

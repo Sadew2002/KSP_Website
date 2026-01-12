@@ -1,9 +1,8 @@
 // Admin Product Routes (Protected - Admin Only)
 const express = require('express');
 const router = express.Router();
-const { Product } = require('../models');
+const Product = require('../models/Product');
 const authorizeAdmin = require('../middleware/authorize');
-const { Op } = require('sequelize');
 
 // Apply admin authorization to all routes
 router.use(authorizeAdmin);
@@ -16,27 +15,27 @@ router.get('/', async (req, res) => {
   try {
     const { page = 1, limit = 20, search, brand, condition } = req.query;
     
-    const where = {};
+    const filter = {};
     
     if (search) {
-      where[Op.or] = [
-        { name: { [Op.iLike]: `%${search}%` } },
-        { sku: { [Op.iLike]: `%${search}%` } },
-        { brand: { [Op.iLike]: `%${search}%` } }
+      filter.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { sku: { $regex: search, $options: 'i' } },
+        { brand: { $regex: search, $options: 'i' } }
       ];
     }
     
-    if (brand) where.brand = brand;
-    if (condition) where.condition = condition;
+    if (brand) filter.brand = brand;
+    if (condition) filter.condition = condition;
 
     const offset = (parseInt(page) - 1) * parseInt(limit);
 
-    const { count, rows: products } = await Product.findAndCountAll({
-      where,
-      limit: parseInt(limit),
-      offset,
-      order: [['createdAt', 'DESC']]
-    });
+    const products = await Product.find(filter)
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit))
+      .skip(offset);
+
+    const count = await Product.countDocuments(filter);
 
     res.json({
       success: true,
@@ -60,7 +59,7 @@ router.get('/', async (req, res) => {
  */
 router.get('/:id', async (req, res) => {
   try {
-    const product = await Product.findByPk(req.params.id);
+    const product = await Product.findById(req.params.id);
     
     if (!product) {
       return res.status(404).json({ success: false, message: 'Product not found' });
@@ -79,6 +78,7 @@ router.get('/:id', async (req, res) => {
  */
 router.post('/', async (req, res) => {
   try {
+    console.log('👤 Admin POST /products by user:', req.user);
     const {
       name,
       description,
@@ -92,10 +92,11 @@ router.post('/', async (req, res) => {
       imageUrl,
       sku,
       isNewArrival = false,
-      isPremiumDeal = false
+      isPremiumDeal = false,
+      productType = 'Phones'
     } = req.body;
 
-    console.log('Creating product:', req.body);
+    console.log('📝 Creating product with body:', req.body);
 
     // Validate required fields
     if (!name || !brand || !price || !sku) {
@@ -106,7 +107,7 @@ router.post('/', async (req, res) => {
     }
 
     // Check if SKU already exists
-    const existingProduct = await Product.findOne({ where: { sku } });
+    const existingProduct = await Product.findOne({ sku });
     if (existingProduct) {
       return res.status(400).json({ success: false, message: 'SKU already exists' });
     }
@@ -125,7 +126,8 @@ router.post('/', async (req, res) => {
       sku,
       isActive: true,
       isNewArrival: Boolean(isNewArrival),
-      isPremiumDeal: Boolean(isPremiumDeal)
+      isPremiumDeal: Boolean(isPremiumDeal),
+      productType
     });
 
     res.status(201).json({
@@ -135,18 +137,23 @@ router.post('/', async (req, res) => {
     });
   } catch (error) {
     console.error('Error creating product:', error);
-    console.error('Error details:', error.name, error.message);
-    if (error.errors) {
-      console.error('Validation errors:', error.errors.map(e => ({ field: e.path, message: e.message })));
-    }
     
-    // Handle Sequelize validation errors
-    if (error.name === 'SequelizeValidationError') {
-      const validationErrors = error.errors.map(e => `${e.path}: ${e.message}`).join(', ');
+    // Handle validation errors
+    if (error.name === 'ValidationError') {
+      const validationErrors = Object.values(error.errors).map(e => e.message);
       return res.status(400).json({ 
         success: false, 
-        message: `Validation error: ${validationErrors}`,
+        message: `Validation error: ${validationErrors.join(', ')}`,
         errors: error.errors 
+      });
+    }
+    
+    // Handle duplicate key error
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern)[0];
+      return res.status(400).json({
+        success: false,
+        message: `${field} already exists`
       });
     }
     
@@ -160,7 +167,7 @@ router.post('/', async (req, res) => {
  */
 router.put('/:id', async (req, res) => {
   try {
-    const product = await Product.findByPk(req.params.id);
+    const product = await Product.findById(req.params.id);
     
     if (!product) {
       return res.status(404).json({ success: false, message: 'Product not found' });
@@ -180,33 +187,36 @@ router.put('/:id', async (req, res) => {
       sku,
       isActive,
       isNewArrival,
-      isPremiumDeal
+      isPremiumDeal,
+      productType
     } = req.body;
 
     // Check if new SKU conflicts with another product
     if (sku && sku !== product.sku) {
-      const existingProduct = await Product.findOne({ where: { sku } });
+      const existingProduct = await Product.findOne({ sku });
       if (existingProduct) {
         return res.status(400).json({ success: false, message: 'SKU already exists' });
       }
     }
 
-    await product.update({
-      name: name ?? product.name,
-      description: description ?? product.description,
-      brand: brand ?? product.brand,
-      price: price ?? product.price,
-      storage: storage ?? product.storage,
-      condition: condition ?? product.condition,
-      color: color ?? product.color,
-      ram: ram ?? product.ram,
-      quantity: quantity ?? product.quantity,
-      imageUrl: imageUrl ?? product.imageUrl,
-      sku: sku ?? product.sku,
-      isActive: isActive ?? product.isActive,
-      isNewArrival: isNewArrival !== undefined ? Boolean(isNewArrival) : product.isNewArrival,
-      isPremiumDeal: isPremiumDeal !== undefined ? Boolean(isPremiumDeal) : product.isPremiumDeal
-    });
+    // Update fields
+    if (name !== undefined) product.name = name;
+    if (description !== undefined) product.description = description;
+    if (brand !== undefined) product.brand = brand;
+    if (price !== undefined) product.price = price;
+    if (storage !== undefined) product.storage = storage;
+    if (condition !== undefined) product.condition = condition;
+    if (color !== undefined) product.color = color;
+    if (ram !== undefined) product.ram = ram;
+    if (quantity !== undefined) product.quantity = quantity;
+    if (imageUrl !== undefined) product.imageUrl = imageUrl;
+    if (sku !== undefined) product.sku = sku;
+    if (isActive !== undefined) product.isActive = isActive;
+    if (isNewArrival !== undefined) product.isNewArrival = Boolean(isNewArrival);
+    if (isPremiumDeal !== undefined) product.isPremiumDeal = Boolean(isPremiumDeal);
+    if (productType !== undefined) product.productType = productType;
+
+    await product.save();
 
     res.json({
       success: true,
@@ -225,14 +235,15 @@ router.put('/:id', async (req, res) => {
  */
 router.delete('/:id', async (req, res) => {
   try {
-    const product = await Product.findByPk(req.params.id);
+    const product = await Product.findById(req.params.id);
     
     if (!product) {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
 
     // Soft delete - just mark as inactive
-    await product.update({ isActive: false });
+    product.isActive = false;
+    await product.save();
 
     res.json({
       success: true,
@@ -250,13 +261,11 @@ router.delete('/:id', async (req, res) => {
  */
 router.delete('/:id/permanent', async (req, res) => {
   try {
-    const product = await Product.findByPk(req.params.id);
+    const product = await Product.findByIdAndDelete(req.params.id);
     
     if (!product) {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
-
-    await product.destroy();
 
     res.json({
       success: true,
@@ -269,26 +278,28 @@ router.delete('/:id/permanent', async (req, res) => {
 });
 
 /**
- * GET /api/admin/products/inventory
+ * GET /api/admin/products/stats/inventory
  * Get inventory report
  */
 router.get('/stats/inventory', async (req, res) => {
   try {
-    const totalProducts = await Product.count();
-    const activeProducts = await Product.count({ where: { isActive: true } });
-    const lowStock = await Product.count({ where: { quantity: { [Op.lte]: 5 }, isActive: true } });
-    const outOfStock = await Product.count({ where: { quantity: 0, isActive: true } });
+    const totalProducts = await Product.countDocuments();
+    const activeProducts = await Product.countDocuments({ isActive: true });
+    const lowStock = await Product.countDocuments({ quantity: { $lte: 5, $gt: 0 }, isActive: true });
+    const outOfStock = await Product.countDocuments({ quantity: 0, isActive: true });
 
-    const brandStats = await Product.findAll({
-      attributes: [
-        'brand',
-        [require('sequelize').fn('COUNT', require('sequelize').col('id')), 'count'],
-        [require('sequelize').fn('SUM', require('sequelize').col('quantity')), 'totalStock']
-      ],
-      where: { isActive: true },
-      group: ['brand'],
-      order: [[require('sequelize').fn('COUNT', require('sequelize').col('id')), 'DESC']]
-    });
+    // Get brand stats
+    const brandStats = await Product.aggregate([
+      { $match: { isActive: true } },
+      {
+        $group: {
+          _id: '$brand',
+          count: { $sum: 1 },
+          totalStock: { $sum: '$quantity' }
+        }
+      },
+      { $sort: { count: -1 } }
+    ]);
 
     res.json({
       success: true,
@@ -297,7 +308,7 @@ router.get('/stats/inventory', async (req, res) => {
         activeProducts,
         lowStock,
         outOfStock,
-        brandStats
+        brandStats: brandStats.map(b => ({ brand: b._id, count: b.count, totalStock: b.totalStock }))
       }
     });
   } catch (error) {

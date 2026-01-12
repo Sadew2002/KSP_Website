@@ -1,37 +1,299 @@
 // Admin Order Routes (Protected - Admin Only)
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
+const Order = require('../models/Order');
+const OrderItem = require('../models/OrderItem');
 
 /**
  * GET /api/admin/orders
- * Get all orders
+ * Get all orders with filtering and pagination
  */
-router.get('/', (req, res) => {
-  res.json({ message: 'Get all orders' });
+router.get('/', async (req, res) => {
+  try {
+    const { status, paymentStatus, page = 1, limit = 10, search } = req.query;
+
+    // Build filter
+    const filter = {};
+    if (status) filter.status = status;
+    if (paymentStatus) filter.paymentStatus = paymentStatus;
+    if (search) {
+      filter.$or = [
+        { _id: mongoose.Types.ObjectId.isValid(search) ? new mongoose.Types.ObjectId(search) : null },
+        { shippingAddress: { $regex: search, $options: 'i' } },
+        { city: { $regex: search, $options: 'i' } }
+      ].filter(clause => Object.values(clause)[0] !== null);
+    }
+
+    // Count total
+    const total = await Order.countDocuments(filter);
+
+    // Calculate pagination
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    // Get orders
+    const orders = await Order.find(filter)
+      .populate('userId', 'firstName lastName email phone')
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit))
+      .skip(skip);
+
+    // Get items for each order
+    const ordersWithItems = await Promise.all(
+      orders.map(async (order) => {
+        const items = await OrderItem.find({ orderId: order._id })
+          .populate('productId', 'name brand price imageUrl');
+        return {
+          ...order.toObject(),
+          items,
+          itemCount: items.length
+        };
+      })
+    );
+
+    res.json({
+      success: true,
+      data: ordersWithItems,
+      pagination: {
+        total,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        pages: Math.ceil(total / parseInt(limit))
+      }
+    });
+  } catch (error) {
+    console.error('Get orders error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch orders'
+    });
+  }
 });
 
 /**
  * PUT /api/admin/orders/:orderId/status
  * Update order status
  */
-router.put('/:orderId/status', (req, res) => {
-  res.json({ message: 'Update order status' });
+router.put('/:orderId/status', async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { status } = req.body;
+
+    // Validate orderId is valid MongoDB ObjectId
+    if (!mongoose.Types.ObjectId.isValid(orderId)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid order ID'
+      });
+    }
+
+    // Validate status
+    const validStatuses = ['Pending', 'Confirmed', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid status. Must be one of: ${validStatuses.join(', ')}`
+      });
+    }
+
+    // Find and update order
+    const order = await Order.findByIdAndUpdate(
+      orderId,
+      { status, updatedAt: new Date() },
+      { new: true, runValidators: true }
+    ).populate('userId', 'firstName lastName email');
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        error: 'Order not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Order status updated',
+      data: order
+    });
+  } catch (error) {
+    console.error('Update order status error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update order status'
+    });
+  }
 });
 
 /**
  * PUT /api/admin/orders/:orderId/tracking
  * Update tracking information
  */
-router.put('/:orderId/tracking', (req, res) => {
-  res.json({ message: 'Update tracking' });
+router.put('/:orderId/tracking', async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { trackingNumber, trackingUrl, carrier } = req.body;
+
+    // Validate orderId is valid MongoDB ObjectId
+    if (!mongoose.Types.ObjectId.isValid(orderId)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid order ID'
+      });
+    }
+
+    // Find order
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        error: 'Order not found'
+      });
+    }
+
+    // Update tracking info
+    order.trackingNumber = trackingNumber || order.trackingNumber;
+    order.trackingUrl = trackingUrl || order.trackingUrl;
+    order.carrier = carrier || order.carrier;
+    order.updatedAt = new Date();
+
+    await order.save();
+
+    res.json({
+      success: true,
+      message: 'Tracking information updated',
+      data: order
+    });
+  } catch (error) {
+    console.error('Update tracking error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update tracking information'
+    });
+  }
 });
 
 /**
  * GET /api/admin/orders/reports/sales
- * Get sales report
+ * Get sales report with stats
  */
-router.get('/reports/sales', (req, res) => {
-  res.json({ message: 'Get sales report' });
+router.get('/reports/sales', async (req, res) => {
+  try {
+    const { startDate, endDate, groupBy = 'daily' } = req.query;
+
+    // Build match stage for date filtering
+    const matchStage = { status: { $ne: 'Cancelled' } };
+    if (startDate || endDate) {
+      matchStage.createdAt = {};
+      if (startDate) matchStage.createdAt.$gte = new Date(startDate);
+      if (endDate) matchStage.createdAt.$lte = new Date(endDate);
+    }
+
+    // Get sales statistics
+    const salesStats = await Order.aggregate([
+      { $match: matchStage },
+      {
+        $group: {
+          _id: null,
+          totalOrders: { $sum: 1 },
+          totalRevenue: { $sum: '$totalAmount' },
+          averageOrderValue: { $avg: '$totalAmount' },
+          minOrderValue: { $min: '$totalAmount' },
+          maxOrderValue: { $max: '$totalAmount' }
+        }
+      }
+    ]);
+
+    // Get orders by status
+    const ordersByStatus = await Order.aggregate([
+      { $match: matchStage },
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 },
+          revenue: { $sum: '$totalAmount' }
+        }
+      },
+      { $sort: { count: -1 } }
+    ]);
+
+    // Get orders by payment status
+    const ordersByPaymentStatus = await Order.aggregate([
+      { $match: matchStage },
+      {
+        $group: {
+          _id: '$paymentStatus',
+          count: { $sum: 1 },
+          revenue: { $sum: '$totalAmount' }
+        }
+      }
+    ]);
+
+    // Get top products ordered
+    const topProducts = await OrderItem.aggregate([
+      {
+        $lookup: {
+          from: 'orders',
+          localField: 'orderId',
+          foreignField: '_id',
+          as: 'order'
+        }
+      },
+      { $unwind: '$order' },
+      { $match: { 'order.status': { $ne: 'Cancelled' } } },
+      {
+        $group: {
+          _id: '$productId',
+          totalQuantity: { $sum: '$quantity' },
+          totalRevenue: { $sum: '$subtotal' },
+          orderCount: { $sum: 1 }
+        }
+      },
+      { $sort: { totalQuantity: -1 } },
+      { $limit: 10 },
+      {
+        $lookup: {
+          from: 'products',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'product'
+        }
+      },
+      { $unwind: '$product' },
+      {
+        $project: {
+          productName: '$product.name',
+          productBrand: '$product.brand',
+          totalQuantity: 1,
+          totalRevenue: 1,
+          orderCount: 1
+        }
+      }
+    ]);
+
+    const stats = salesStats[0] || {
+      totalOrders: 0,
+      totalRevenue: 0,
+      averageOrderValue: 0,
+      minOrderValue: 0,
+      maxOrderValue: 0
+    };
+
+    res.json({
+      success: true,
+      data: {
+        summary: stats,
+        ordersByStatus,
+        ordersByPaymentStatus,
+        topProducts
+      }
+    });
+  } catch (error) {
+    console.error('Get sales report error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to generate sales report'
+    });
+  }
 });
 
 module.exports = router;

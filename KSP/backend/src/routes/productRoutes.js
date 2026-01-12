@@ -1,8 +1,7 @@
 // Product Routes (Public)
 const express = require('express');
 const router = express.Router();
-const { Product } = require('../models');
-const { Op } = require('sequelize');
+const Product = require('../models/Product');
 
 /**
  * GET /api/products
@@ -14,7 +13,8 @@ router.get('/', async (req, res) => {
       page = 1, 
       limit = 12, 
       brand, 
-      condition, 
+      condition,
+      productType,
       minPrice, 
       maxPrice,
       search,
@@ -24,46 +24,42 @@ router.get('/', async (req, res) => {
       isPremiumDeal
     } = req.query;
 
-    const where = { isActive: true };
+    // Build filter object
+    const filter = { isActive: true };
 
-    if (brand) {
-      where.brand = brand;
-    }
+    if (brand) filter.brand = brand;
+    if (condition) filter.condition = condition;
+    if (productType) filter.productType = productType;
 
-    if (condition) {
-      where.condition = condition;
-    }
-
-    if (isNewArrival === 'true') {
-      where.isNewArrival = true;
-    }
-
-    if (isPremiumDeal === 'true') {
-      where.isPremiumDeal = true;
-    }
+    if (isNewArrival === 'true') filter.isNewArrival = true;
+    if (isPremiumDeal === 'true') filter.isPremiumDeal = true;
 
     if (minPrice || maxPrice) {
-      where.price = {};
-      if (minPrice) where.price[Op.gte] = parseFloat(minPrice);
-      if (maxPrice) where.price[Op.lte] = parseFloat(maxPrice);
+      filter.price = {};
+      if (minPrice) filter.price.$gte = parseFloat(minPrice);
+      if (maxPrice) filter.price.$lte = parseFloat(maxPrice);
     }
 
     if (search) {
-      where[Op.or] = [
-        { name: { [Op.iLike]: `%${search}%` } },
-        { brand: { [Op.iLike]: `%${search}%` } },
-        { description: { [Op.iLike]: `%${search}%` } }
+      filter.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { brand: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } }
       ];
     }
 
     const offset = (parseInt(page) - 1) * parseInt(limit);
 
-    const { count, rows: products } = await Product.findAndCountAll({
-      where,
-      limit: parseInt(limit),
-      offset,
-      order: [[sortBy, sortOrder.toUpperCase()]]
-    });
+    // Build sort object
+    const sortObj = {};
+    sortObj[sortBy] = sortOrder === 'DESC' ? -1 : 1;
+
+    const products = await Product.find(filter)
+      .sort(sortObj)
+      .limit(parseInt(limit))
+      .skip(offset);
+
+    const count = await Product.countDocuments(filter);
 
     res.json({
       products,
@@ -86,13 +82,8 @@ router.get('/', async (req, res) => {
  */
 router.get('/brands', async (req, res) => {
   try {
-    const brands = await Product.findAll({
-      attributes: ['brand'],
-      where: { isActive: true },
-      group: ['brand'],
-      order: [['brand', 'ASC']]
-    });
-    res.json(brands.map(b => b.brand));
+    const brands = await Product.distinct('brand', { isActive: true });
+    res.json(brands.sort());
   } catch (error) {
     console.error('Error fetching brands:', error);
     res.status(500).json({ message: 'Error fetching brands', error: error.message });
@@ -105,7 +96,7 @@ router.get('/brands', async (req, res) => {
  */
 router.get('/:id', async (req, res) => {
   try {
-    const product = await Product.findByPk(req.params.id);
+    const product = await Product.findById(req.params.id);
     
     if (!product) {
       return res.status(404).json({ message: 'Product not found' });

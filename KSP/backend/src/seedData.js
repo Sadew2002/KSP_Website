@@ -1,22 +1,21 @@
-const sequelize = require('./config/sequelize');
+require('dotenv').config();
+const mongoose = require('mongoose');
+const connectDB = require('./config/mongodb');
 const { User, Product } = require('./models');
-const bcrypt = require('bcryptjs');
 
 const seedData = async () => {
   try {
-    await sequelize.authenticate();
+    // Connect to MongoDB
+    await connectDB();
     console.log('Database connected...');
 
-    // Create or Update Admin User with correct password
-    const adminPassword = await bcrypt.hash('admin123', 10);
-    let admin = await User.findOne({ where: { email: 'admin@ksp.com' } });
+    // Create or Update Admin User
+    let admin = await User.findOne({ email: 'admin@ksp.com' });
     
     if (admin) {
       // Update existing admin
-      await User.update(
-        { password: adminPassword },
-        { where: { email: 'admin@ksp.com' } }
-      );
+      admin.password = 'admin123';
+      await admin.save();
       console.log('✓ Admin user: Already exists - Password reset to admin123');
     } else {
       // Create new admin
@@ -24,7 +23,7 @@ const seedData = async () => {
         firstName: 'Admin',
         lastName: 'User',
         email: 'admin@ksp.com',
-        password: adminPassword,
+        password: 'admin123',
         phone: '0771234567',
         address: '123 Main Street',
         city: 'Kandy',
@@ -36,16 +35,13 @@ const seedData = async () => {
       console.log('✓ Admin user: Created with password admin123');
     }
 
-    // Create or Update Sample Customer with correct password
-    const customerPassword = await bcrypt.hash('customer123', 10);
-    let customer = await User.findOne({ where: { email: 'customer@example.com' } });
+    // Create or Update Sample Customer
+    let customer = await User.findOne({ email: 'customer@example.com' });
     
     if (customer) {
       // Update existing customer
-      await User.update(
-        { password: customerPassword },
-        { where: { email: 'customer@example.com' } }
-      );
+      customer.password = 'customer123';
+      await customer.save();
       console.log('✓ Customer user: Already exists - Password reset to customer123');
     } else {
       // Create new customer
@@ -53,7 +49,7 @@ const seedData = async () => {
         firstName: 'John',
         lastName: 'Doe',
         email: 'customer@example.com',
-        password: customerPassword,
+        password: 'customer123',
         phone: '0777654321',
         address: '456 Temple Road',
         city: 'Colombo',
@@ -77,8 +73,11 @@ const seedData = async () => {
         color: 'Natural Titanium',
         ram: '8GB',
         quantity: 15,
-        imageUrl: '/uploads/products/iphone-15-pro-max.jpeg',
-        sku: 'APL-IP15PM-256-NT'
+        imageUrl: '/uploads/products/product-1767002488188-1144297335.jpeg',
+        sku: 'APL-IP15PM-256-NT',
+        isNewArrival: true,
+        isPremiumDeal: false,
+        productType: 'Phones'
       },
       {
         name: 'iPhone 15 Pro',
@@ -90,8 +89,11 @@ const seedData = async () => {
         color: 'Blue Titanium',
         ram: '8GB',
         quantity: 20,
-        imageUrl: '/uploads/products/iphone-15-pro.jpeg',
-        sku: 'APL-IP15P-128-BT'
+        imageUrl: '/uploads/products/product-1767002488188-1144297336.jpeg',
+        sku: 'APL-IP15P-128-BT',
+        isNewArrival: true,
+        isPremiumDeal: false,
+        productType: 'Phones'
       },
       {
         name: 'iPhone 14',
@@ -103,8 +105,11 @@ const seedData = async () => {
         color: 'Midnight',
         ram: '6GB',
         quantity: 25,
-        imageUrl: '/uploads/products/iphone-14.jpg',
-        sku: 'APL-IP14-128-MN'
+        imageUrl: '/uploads/products/product-1767002488188-1144297337.jpeg',
+        sku: 'APL-IP14-128-MN',
+        isNewArrival: false,
+        isPremiumDeal: true,
+        productType: 'Phones'
       },
       {
         name: 'Samsung Galaxy S24 Ultra',
@@ -116,8 +121,11 @@ const seedData = async () => {
         color: 'Titanium Black',
         ram: '12GB',
         quantity: 18,
-        imageUrl: '/uploads/products/samsung-galaxy-s24-ultra.jpeg',
-        sku: 'SAM-S24U-256-TB'
+        imageUrl: '/uploads/products/product-1767002488188-1144297338.jpeg',
+        sku: 'SAM-S24U-256-TB',
+        isNewArrival: true,
+        isPremiumDeal: true,
+        productType: 'Phones'
       },
       {
         name: 'Samsung Galaxy S24+',
@@ -129,8 +137,11 @@ const seedData = async () => {
         color: 'Cobalt Violet',
         ram: '12GB',
         quantity: 22,
-        imageUrl: '/uploads/products/samsung-galaxy-s24.jpg',
-        sku: 'SAM-S24P-256-CV'
+        imageUrl: '/uploads/products/product-1767002488188-1144297339.jpeg',
+        sku: 'SAM-S24P-256-CV',
+        isNewArrival: true,
+        isPremiumDeal: false,
+        productType: 'Phones'
       },
       {
         name: 'Samsung Galaxy A54 5G',
@@ -142,8 +153,11 @@ const seedData = async () => {
         color: 'Awesome Graphite',
         ram: '8GB',
         quantity: 30,
-        imageUrl: '/uploads/products/samsung-galaxy-a54-5g.jpg',
-        sku: 'SAM-A54-128-AG'
+        imageUrl: '/uploads/products/product-1767002488188-1144297340.jpeg',
+        sku: 'SAM-A54-128-AG',
+        isNewArrival: false,
+        isPremiumDeal: true,
+        productType: 'Phones'
       },
       {
         name: 'Google Pixel 8 Pro',
@@ -155,8 +169,11 @@ const seedData = async () => {
         color: 'Obsidian',
         ram: '12GB',
         quantity: 12,
-        imageUrl: '/uploads/products/google-pixel-8-pro.jpg',
-        sku: 'GGL-PX8P-128-OB'
+        imageUrl: '/uploads/products/product-1767002488188-1144297341.jpeg',
+        sku: 'GGL-PX8P-128-OB',
+        isNewArrival: true,
+        isPremiumDeal: false,
+        productType: 'Phones'
       },
       {
         name: 'Google Pixel 8',
@@ -168,8 +185,11 @@ const seedData = async () => {
         color: 'Hazel',
         ram: '8GB',
         quantity: 15,
-        imageUrl: '/uploads/products/google-pixel-8.jpg',
-        sku: 'GGL-PX8-128-HZ'
+        imageUrl: '/uploads/products/product-1767002488188-1144297342.jpeg',
+        sku: 'GGL-PX8-128-HZ',
+        isNewArrival: false,
+        isPremiumDeal: false,
+        productType: 'Phones'
       },
       {
         name: 'OnePlus 12',
@@ -181,8 +201,11 @@ const seedData = async () => {
         color: 'Silky Black',
         ram: '12GB',
         quantity: 20,
-        imageUrl: '/uploads/products/oneplus-12.jpg',
-        sku: 'OP-12-256-SB'
+        imageUrl: '/uploads/products/product-1767002488188-1144297343.jpeg',
+        sku: 'OP-12-256-SB',
+        isNewArrival: true,
+        isPremiumDeal: true,
+        productType: 'Phones'
       },
       {
         name: 'Xiaomi 14 Pro',
@@ -194,8 +217,11 @@ const seedData = async () => {
         color: 'Black',
         ram: '12GB',
         quantity: 16,
-        imageUrl: '/uploads/products/xiaomi-14-pro.jpg',
-        sku: 'XMI-14P-256-BK'
+        imageUrl: '/uploads/products/product-1767002488188-1144297344.jpeg',
+        sku: 'XMI-14P-256-BK',
+        isNewArrival: false,
+        isPremiumDeal: true,
+        productType: 'Phones'
       },
       {
         name: 'iPhone 13 (Pre-Owned)',
@@ -207,8 +233,11 @@ const seedData = async () => {
         color: 'Pink',
         ram: '4GB',
         quantity: 5,
-        imageUrl: '/uploads/products/iphone-13-pre-owned.jpg',
-        sku: 'APL-IP13-128-PK-U'
+        imageUrl: '/uploads/products/product-1767002488188-1144297345.jpeg',
+        sku: 'APL-IP13-128-PK-U',
+        isNewArrival: false,
+        isPremiumDeal: false,
+        productType: 'Phones'
       },
       {
         name: 'Samsung Galaxy S23 (Pre-Owned)',
@@ -220,17 +249,22 @@ const seedData = async () => {
         color: 'Cream',
         ram: '8GB',
         quantity: 8,
-        imageUrl: '/uploads/products/samsung-galaxy-s23-pre-owned.jpg',
-        sku: 'SAM-S23-256-CR-U'
+        imageUrl: '/uploads/products/product-1767002488188-1144297346.jpeg',
+        sku: 'SAM-S23-256-CR-U',
+        isNewArrival: false,
+        isPremiumDeal: false,
+        productType: 'Phones'
       }
     ];
 
     for (const productData of products) {
-      const [product, created] = await Product.findOrCreate({
-        where: { sku: productData.sku },
-        defaults: productData
-      });
-      console.log(`✓ Product "${productData.name}":`, created ? 'Created' : 'Already exists');
+      const existing = await Product.findOne({ sku: productData.sku });
+      if (existing) {
+        console.log(`✓ Product "${productData.name}": Already exists`);
+      } else {
+        await Product.create(productData);
+        console.log(`✓ Product "${productData.name}": Created`);
+      }
     }
 
     console.log('\n✅ Seed data completed successfully!');
@@ -238,9 +272,11 @@ const seedData = async () => {
     console.log('   Admin: admin@ksp.com / admin123');
     console.log('   Customer: customer@example.com / customer123');
     
+    await mongoose.connection.close();
     process.exit(0);
   } catch (error) {
     console.error('❌ Error seeding data:', error);
+    await mongoose.connection.close();
     process.exit(1);
   }
 };

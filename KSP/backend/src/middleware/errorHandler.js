@@ -1,9 +1,9 @@
 const errorHandler = (err, req, res, next) => {
   console.error('Error:', err);
 
-  // Sequelize validation error
-  if (err.name === 'SequelizeValidationError') {
-    const messages = err.errors.map(e => e.message);
+  // Mongoose validation error
+  if (err.name === 'ValidationError') {
+    const messages = Object.values(err.errors).map(e => e.message);
     return res.status(400).json({
       success: false,
       message: 'Validation error',
@@ -11,9 +11,9 @@ const errorHandler = (err, req, res, next) => {
     });
   }
 
-  // Sequelize unique constraint error
-  if (err.name === 'SequelizeUniqueConstraintError') {
-    const field = err.errors[0].path;
+  // Mongoose duplicate key error (11000)
+  if (err.code === 11000) {
+    const field = Object.keys(err.keyPattern)[0];
     return res.status(409).json({
       success: false,
       message: `${field} already exists`

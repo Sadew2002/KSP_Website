@@ -1,72 +1,78 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../config/sequelize');
+const mongoose = require('mongoose');
 
-const Order = sequelize.define('Order', {
-  id: {
-    type: DataTypes.UUID,
-    defaultValue: DataTypes.UUIDV4,
-    primaryKey: true
+const orderSchema = new mongoose.Schema(
+  {
+    orderId: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true,
+    },
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+      index: true,
+    },
+    totalAmount: {
+      type: mongoose.Decimal128,
+      required: true,
+      min: 0,
+    },
+    status: {
+      type: String,
+      enum: ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'],
+      default: 'pending',
+      index: true,
+    },
+    paymentMethod: {
+      type: String,
+      enum: ['cash_on_delivery', 'payhere', 'stripe'],
+      required: true,
+    },
+    paymentStatus: {
+      type: String,
+      enum: ['unpaid', 'paid', 'failed', 'refunded'],
+      default: 'unpaid',
+    },
+    shippingAddress: {
+      type: String,
+      required: true,
+    },
+    shippingCity: {
+      type: String,
+      required: true,
+    },
+    shippingProvince: {
+      type: String,
+      required: true,
+    },
+    shippingPostalCode: {
+      type: String,
+      required: true,
+    },
+    notes: {
+      type: String,
+      default: null,
+    },
+    trackingNumber: {
+      type: String,
+      default: null,
+    },
   },
-  orderId: {
-    type: DataTypes.STRING,
-    unique: true,
-    allowNull: false,
-    comment: 'Unique order ID visible to customers'
-  },
-  userId: {
-    type: DataTypes.UUID,
-    allowNull: false,
-    references: {
-      model: 'Users',
-      key: 'id'
-    }
-  },
-  totalAmount: {
-    type: DataTypes.DECIMAL(10, 2),
-    allowNull: false,
-    validate: {
-      isDecimal: true,
-      min: 0
-    }
-  },
-  status: {
-    type: DataTypes.ENUM('pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'),
-    defaultValue: 'pending'
-  },
-  paymentMethod: {
-    type: DataTypes.ENUM('cash_on_delivery', 'payhere', 'stripe'),
-    allowNull: false
-  },
-  paymentStatus: {
-    type: DataTypes.ENUM('unpaid', 'paid', 'failed', 'refunded'),
-    defaultValue: 'unpaid'
-  },
-  shippingAddress: {
-    type: DataTypes.STRING,
-    allowNull: false
-  },
-  shippingCity: {
-    type: DataTypes.STRING,
-    allowNull: false
-  },
-  shippingProvince: {
-    type: DataTypes.STRING,
-    allowNull: false
-  },
-  shippingPostalCode: {
-    type: DataTypes.STRING,
-    allowNull: false
-  },
-  notes: {
-    type: DataTypes.TEXT,
-    allowNull: true
-  },
-  trackingNumber: {
-    type: DataTypes.STRING,
-    allowNull: true
+  {
+    timestamps: true,
   }
-}, {
-  timestamps: true
+);
+
+// Convert Decimal128 to Number for JSON serialization
+orderSchema.set('toJSON', {
+  transform: (doc, ret) => {
+    if (ret.totalAmount) {
+      ret.totalAmount = parseFloat(ret.totalAmount.toString());
+    }
+    return ret;
+  },
 });
 
-module.exports = Order;
+module.exports = mongoose.model('Order', orderSchema);
