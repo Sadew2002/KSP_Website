@@ -5,24 +5,9 @@ const Order = require('./Order');
 const OrderItem = require('./OrderItem');
 const Payment = require('./Payment');
 
-// Define associations
-User.hasMany(Cart, { foreignKey: 'userId', onDelete: 'CASCADE' });
-Cart.belongsTo(User, { foreignKey: 'userId' });
-
-Product.hasMany(Cart, { foreignKey: 'productId' });
-Cart.belongsTo(Product, { foreignKey: 'productId' });
-
-User.hasMany(Order, { foreignKey: 'userId', onDelete: 'CASCADE' });
-Order.belongsTo(User, { foreignKey: 'userId' });
-
-Order.hasMany(OrderItem, { foreignKey: 'orderId', onDelete: 'CASCADE' });
-OrderItem.belongsTo(Order, { foreignKey: 'orderId' });
-
-Product.hasMany(OrderItem, { foreignKey: 'productId' });
-OrderItem.belongsTo(Product, { foreignKey: 'productId' });
-
-Order.hasOne(Payment, { foreignKey: 'orderId', onDelete: 'CASCADE' });
-Payment.belongsTo(Order, { foreignKey: 'orderId' });
+// Mongoose models are exported directly
+// Virtual fields and population are defined in the model files themselves
+// Relationships are handled via ObjectId references and Mongoose populate()
 
 module.exports = {
   User,
@@ -31,5 +16,4 @@ module.exports = {
   Order,
   OrderItem,
   Payment,
-  sequelize: require('../config/sequelize')
 };

@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { FaUser, FaEnvelope, FaLock, FaPhone } from 'react-icons/fa';
+import api from '../../services/api';
 
 const Register = () => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -44,9 +46,35 @@ const Register = () => {
     }
 
     setLoading(true);
-    // TODO: Implement register logic
-    console.log('Register attempt:', formData);
-    setLoading(false);
+    setErrors({});
+    
+    try {
+      const response = await api.post('/auth/register', {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        phone: formData.phone || null,
+        password: formData.password
+      });
+
+      if (response.data.success) {
+        // Store token and user info
+        localStorage.setItem('authToken', response.data.token);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+        
+        // Redirect to home page
+        navigate('/');
+      } else {
+        setErrors({ general: response.data.message || 'Registration failed' });
+      }
+    } catch (err) {
+      console.error('Register error:', err);
+      setErrors({ 
+        general: err.response?.data?.message || 'Registration failed. Please try again.' 
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -56,6 +84,10 @@ const Register = () => {
           <h1 className="text-3xl font-bold text-ksp-black mb-2">Create Account</h1>
           <p className="text-gray-600">Join Kandy Super Phone today</p>
         </div>
+
+        {errors.general && (
+          <div className="alert-error mb-4">{errors.general}</div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">

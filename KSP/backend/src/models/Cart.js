@@ -1,50 +1,45 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../config/sequelize');
+const mongoose = require('mongoose');
 
-const Cart = sequelize.define('Cart', {
-  id: {
-    type: DataTypes.UUID,
-    defaultValue: DataTypes.UUIDV4,
-    primaryKey: true
+const cartSchema = new mongoose.Schema(
+  {
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+      index: true,
+    },
+    productId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Product',
+      required: true,
+    },
+    quantity: {
+      type: Number,
+      required: true,
+      default: 1,
+      min: 1,
+    },
+    priceAtAdd: {
+      type: mongoose.Decimal128,
+      required: true,
+    },
   },
-  userId: {
-    type: DataTypes.UUID,
-    allowNull: false,
-    references: {
-      model: 'Users',
-      key: 'id'
-    }
-  },
-  productId: {
-    type: DataTypes.UUID,
-    allowNull: false,
-    references: {
-      model: 'Products',
-      key: 'id'
-    }
-  },
-  quantity: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-    defaultValue: 1,
-    validate: {
-      isInt: true,
-      min: 1
-    }
-  },
-  priceAtAdd: {
-    type: DataTypes.DECIMAL(10, 2),
-    allowNull: false,
-    comment: 'Price captured at the time of adding to cart'
+  {
+    timestamps: true,
   }
-}, {
-  timestamps: true,
-  indexes: [
-    {
-      unique: true,
-      fields: ['userId', 'productId']
+);
+
+// Ensure unique combination of userId and productId
+cartSchema.index({ userId: 1, productId: 1 }, { unique: true });
+
+// Convert Decimal128 to Number for JSON serialization
+cartSchema.set('toJSON', {
+  transform: (doc, ret) => {
+    if (ret.priceAtAdd) {
+      ret.priceAtAdd = parseFloat(ret.priceAtAdd.toString());
     }
-  ]
+    return ret;
+  },
 });
 
-module.exports = Cart;
+module.exports = mongoose.model('Cart', cartSchema);

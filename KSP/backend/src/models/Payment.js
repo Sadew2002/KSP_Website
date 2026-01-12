@@ -1,58 +1,60 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../config/sequelize');
+const mongoose = require('mongoose');
 
-const Payment = sequelize.define('Payment', {
-  id: {
-    type: DataTypes.UUID,
-    defaultValue: DataTypes.UUIDV4,
-    primaryKey: true
-  },
-  orderId: {
-    type: DataTypes.UUID,
-    allowNull: false,
-    references: {
-      model: 'Orders',
-      key: 'id'
+const paymentSchema = new mongoose.Schema(
+  {
+    orderId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Order',
+      required: true,
+      unique: true,
+      index: true,
     },
-    onDelete: 'CASCADE'
+    amount: {
+      type: mongoose.Decimal128,
+      required: true,
+      min: 0,
+    },
+    paymentMethod: {
+      type: String,
+      enum: ['cash_on_delivery', 'payhere', 'stripe'],
+      required: true,
+    },
+    status: {
+      type: String,
+      enum: ['pending', 'completed', 'failed', 'refunded'],
+      default: 'pending',
+      index: true,
+    },
+    transactionId: {
+      type: String,
+      default: null,
+    },
+    paymentReference: {
+      type: String,
+      default: null,
+    },
+    failureReason: {
+      type: String,
+      default: null,
+    },
+    metadata: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
   },
-  amount: {
-    type: DataTypes.DECIMAL(10, 2),
-    allowNull: false,
-    validate: {
-      isDecimal: true,
-      min: 0
-    }
-  },
-  paymentMethod: {
-    type: DataTypes.ENUM('cash_on_delivery', 'payhere', 'stripe'),
-    allowNull: false
-  },
-  status: {
-    type: DataTypes.ENUM('pending', 'completed', 'failed', 'refunded'),
-    defaultValue: 'pending'
-  },
-  transactionId: {
-    type: DataTypes.STRING,
-    allowNull: true,
-    comment: 'Stripe or PayHere transaction ID'
-  },
-  paymentReference: {
-    type: DataTypes.STRING,
-    allowNull: true,
-    comment: 'PayHere payment reference'
-  },
-  failureReason: {
-    type: DataTypes.TEXT,
-    allowNull: true
-  },
-  metadata: {
-    type: DataTypes.JSON,
-    allowNull: true,
-    comment: 'Additional payment data'
+  {
+    timestamps: true,
   }
-}, {
-  timestamps: true
+);
+
+// Convert Decimal128 to Number for JSON serialization
+paymentSchema.set('toJSON', {
+  transform: (doc, ret) => {
+    if (ret.amount) {
+      ret.amount = parseFloat(ret.amount.toString());
+    }
+    return ret;
+  },
 });
 
-module.exports = Payment;
+module.exports = mongoose.model('Payment', paymentSchema);

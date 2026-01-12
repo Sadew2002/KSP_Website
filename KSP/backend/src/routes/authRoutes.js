@@ -1,9 +1,8 @@
 // Authentication Routes
 const express = require('express');
 const router = express.Router();
-const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { User } = require('../models');
+const User = require('../models/User');
 
 /**
  * POST /api/auth/register
@@ -22,7 +21,7 @@ router.post('/register', async (req, res) => {
     }
 
     // Check if user already exists
-    const existingUser = await User.findOne({ where: { email } });
+    const existingUser = await User.findOne({ email: email.toLowerCase() });
     if (existingUser) {
       return res.status(409).json({
         success: false,
@@ -30,14 +29,10 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    // Create user
+    // Create user (password hashing happens automatically via Mongoose hook)
     const user = await User.create({
-      email,
-      password: hashedPassword,
+      email: email.toLowerCase(),
+      password,
       firstName,
       lastName,
       role: role || 'customer',
@@ -48,7 +43,7 @@ router.post('/register', async (req, res) => {
       success: true,
       message: 'Registration successful',
       user: {
-        id: user.id,
+        id: user._id,
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
@@ -81,8 +76,8 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // Find user
-    const user = await User.findOne({ where: { email } });
+    // Find user and select password explicitly (since we set select: false)
+    const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -90,8 +85,8 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // Compare password
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+    // Compare password using Mongoose method
+    const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
       return res.status(401).json({
         success: false,
@@ -99,10 +94,14 @@ router.post('/login', async (req, res) => {
       });
     }
 
+    // Update last login
+    user.lastLogin = new Date();
+    await user.save();
+
     // Generate JWT token
     const token = jwt.sign(
       {
-        id: user.id,
+        id: user._id,
         email: user.email,
         role: user.role,
         firstName: user.firstName,
@@ -117,7 +116,7 @@ router.post('/login', async (req, res) => {
       message: 'Login successful',
       token,
       user: {
-        id: user.id,
+        id: user._id,
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,

@@ -176,8 +176,8 @@ const Home = () => {
           ) : newArrivals.length > 0 ? (
             newArrivals.map((product, i) => (
               <Link 
-                key={product.id || i} 
-                to={`/products/${product.id}`} 
+                key={product._id || i} 
+                to={`/products/${product._id}`}
                 className="group relative overflow-hidden rounded-2xl bg-white cursor-pointer shadow-lg hover:shadow-2xl transition-all duration-400 transform hover:-translate-y-1"
               >
                 {/* Product Image Container */}
@@ -291,8 +291,8 @@ const Home = () => {
           ) : premiumDeals.length > 0 ? (
             premiumDeals.map((product, i) => (
               <Link 
-                key={product.id || i} 
-                to={`/products/${product.id}`} 
+                key={product._id || i} 
+                to={`/products/${product._id}`}
                 className="group relative overflow-hidden rounded-2xl bg-white cursor-pointer shadow-lg hover:shadow-2xl transition-all duration-400 transform hover:-translate-y-1"
               >
                 {/* Product Image Container */}
@@ -382,7 +382,7 @@ const Home = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-4 md:grid-rows-2 gap-4 h-[800px] md:h-[600px]">
           {/* Large Card */}
-          <Link to="/products?brand=apple" className="md:col-span-2 md:row-span-2 relative group overflow-hidden rounded-3xl border border-gray-400 hover:border-ksp-red/50 cursor-pointer shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:scale-105" style={{ backgroundImage: 'url(/images/iphone-bg.jpg)', backgroundSize: 'cover', backgroundPosition: 'center', perspective: '1000px' }} onMouseMove={(e) => { const rect = e.currentTarget.getBoundingClientRect(); const x = (e.clientX - rect.left) / rect.width - 0.5; const y = (e.clientY - rect.top) / rect.height - 0.5; e.currentTarget.style.transform = `scale(1.01) rotateX(${y * 10}deg) rotateY(${x * 10}deg)`; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1) rotateX(0deg) rotateY(0deg)'; }}>
+          <Link to="/products?brand=Apple" className="md:col-span-2 md:row-span-2 relative group overflow-hidden rounded-3xl border border-gray-400 hover:border-ksp-red/50 cursor-pointer shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:scale-105" style={{ backgroundImage: 'url(/images/iphone-bg.jpg)', backgroundSize: 'cover', backgroundPosition: 'center', perspective: '1000px' }} onMouseMove={(e) => { const rect = e.currentTarget.getBoundingClientRect(); const x = (e.clientX - rect.left) / rect.width - 0.5; const y = (e.clientY - rect.top) / rect.height - 0.5; e.currentTarget.style.transform = `scale(1.01) rotateX(${y * 10}deg) rotateY(${x * 10}deg)`; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1) rotateX(0deg) rotateY(0deg)'; }}>
             <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent group-hover:from-black/70 transition-all duration-500"></div>
             <div className="absolute inset-0 group-hover:bg-ksp-red/10 transition-colors duration-500"></div>
             <div className="absolute bottom-8 left-8 transform group-hover:translate-y-2 transition-transform duration-500">
@@ -392,7 +392,7 @@ const Home = () => {
           </Link>
 
           {/* Medium Card */}
-          <Link to="/products?brand=samsung" className="md:col-span-2 relative group overflow-hidden rounded-3xl border border-gray-400 hover:border-ksp-red/50 cursor-pointer shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:scale-105" style={{ backgroundImage: 'url(/images/samsung-bg.jpg)', backgroundSize: 'cover', backgroundPosition: 'center', perspective: '1000px' }} onMouseMove={(e) => { const rect = e.currentTarget.getBoundingClientRect(); const x = (e.clientX - rect.left) / rect.width - 0.5; const y = (e.clientY - rect.top) / rect.height - 0.5; e.currentTarget.style.transform = `scale(1.01) rotateX(${y * 10}deg) rotateY(${x * 10}deg)`; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1) rotateX(0deg) rotateY(0deg)'; }}>
+          <Link to="/products?brand=Samsung" className="md:col-span-2 relative group overflow-hidden rounded-3xl border border-gray-400 hover:border-ksp-red/50 cursor-pointer shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:scale-105" style={{ backgroundImage: 'url(/images/samsung-bg.jpg)', backgroundSize: 'cover', backgroundPosition: 'center', perspective: '1000px' }} onMouseMove={(e) => { const rect = e.currentTarget.getBoundingClientRect(); const x = (e.clientX - rect.left) / rect.width - 0.5; const y = (e.clientY - rect.top) / rect.height - 0.5; e.currentTarget.style.transform = `scale(1.01) rotateX(${y * 10}deg) rotateY(${x * 10}deg)`; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1) rotateX(0deg) rotateY(0deg)'; }}>
             <div className="absolute inset-0 bg-gradient-to-r from-black/50 to-transparent group-hover:from-black/70 transition-all duration-500"></div>
             <div className="absolute inset-0 group-hover:bg-ksp-red/10 transition-colors duration-500"></div>
             <div className="absolute bottom-8 left-8 flex flex-col justify-end">
@@ -402,7 +402,7 @@ const Home = () => {
           </Link>
 
           {/* Small Cards */}
-          <Link to="/products?brand=xiaomi" className="relative group overflow-hidden rounded-3xl border border-gray-400 hover:border-ksp-red/50 cursor-pointer shadow-lg hover:shadow-xl transition-all duration-500 transform hover:scale-105" style={{ backgroundImage: 'url(/images/xiaomi-bg.jpg)', backgroundSize: 'cover', backgroundPosition: 'center', perspective: '1000px' }} onMouseMove={(e) => { const rect = e.currentTarget.getBoundingClientRect(); const x = (e.clientX - rect.left) / rect.width - 0.5; const y = (e.clientY - rect.top) / rect.height - 0.5; e.currentTarget.style.transform = `scale(1.01) rotateX(${y * 10}deg) rotateY(${x * 10}deg)`; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1) rotateX(0deg) rotateY(0deg)'; }}>
+          <Link to="/products?brand=Xiaomi" className="relative group overflow-hidden rounded-3xl border border-gray-400 hover:border-ksp-red/50 cursor-pointer shadow-lg hover:shadow-xl transition-all duration-500 transform hover:scale-105" style={{ backgroundImage: 'url(/images/xiaomi-bg.jpg)', backgroundSize: 'cover', backgroundPosition: 'center', perspective: '1000px' }} onMouseMove={(e) => { const rect = e.currentTarget.getBoundingClientRect(); const x = (e.clientX - rect.left) / rect.width - 0.5; const y = (e.clientY - rect.top) / rect.height - 0.5; e.currentTarget.style.transform = `scale(1.01) rotateX(${y * 10}deg) rotateY(${x * 10}deg)`; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1) rotateX(0deg) rotateY(0deg)'; }}>
             <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent group-hover:from-black/70 transition-all duration-500"></div>
             <div className="absolute inset-0 group-hover:bg-ksp-red/10 transition-colors duration-500"></div>
             <div className="absolute bottom-8 left-8 flex flex-col items-start text-left">
@@ -411,7 +411,7 @@ const Home = () => {
             </div>
           </Link>
 
-          <Link to="/products?brand=oneplus" className="relative group overflow-hidden rounded-3xl border border-gray-400 hover:border-ksp-red/50 cursor-pointer shadow-lg hover:shadow-xl transition-all duration-500 transform hover:scale-105" style={{ backgroundImage: 'url(/images/infinix-bg.jpg)', backgroundSize: 'cover', backgroundPosition: 'center', perspective: '1000px' }} onMouseMove={(e) => { const rect = e.currentTarget.getBoundingClientRect(); const x = (e.clientX - rect.left) / rect.width - 0.5; const y = (e.clientY - rect.top) / rect.height - 0.5; e.currentTarget.style.transform = `scale(1.01) rotateX(${y * 10}deg) rotateY(${x * 10}deg)`; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1) rotateX(0deg) rotateY(0deg)'; }}>
+          <Link to="/products?brand=OnePlus" className="relative group overflow-hidden rounded-3xl border border-gray-400 hover:border-ksp-red/50 cursor-pointer shadow-lg hover:shadow-xl transition-all duration-500 transform hover:scale-105" style={{ backgroundImage: 'url(/images/infinix-bg.jpg)', backgroundSize: 'cover', backgroundPosition: 'center', perspective: '1000px' }} onMouseMove={(e) => { const rect = e.currentTarget.getBoundingClientRect(); const x = (e.clientX - rect.left) / rect.width - 0.5; const y = (e.clientY - rect.top) / rect.height - 0.5; e.currentTarget.style.transform = `scale(1.01) rotateX(${y * 10}deg) rotateY(${x * 10}deg)`; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1) rotateX(0deg) rotateY(0deg)'; }}>
             <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent group-hover:from-black/70 transition-all duration-500"></div>
             <div className="absolute inset-0 group-hover:bg-ksp-red/10 transition-colors duration-500"></div>
             <div className="absolute bottom-8 left-8 flex flex-col items-start text-left">

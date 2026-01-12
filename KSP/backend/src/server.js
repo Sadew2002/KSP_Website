@@ -3,11 +3,14 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
-const { sequelize } = require('./models');
+const connectDB = require('./config/mongodb');
 const authenticateToken = require('./middleware/authenticate');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
+
+// Connect to MongoDB
+connectDB();
 
 // Security Middleware - Allow images to load
 app.use(helmet({
@@ -66,32 +69,6 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Database Connection
-sequelize.authenticate()
-  .then(() => {
-    console.log('✓ Database connected successfully');
-  })
-  .catch((error) => {
-    console.error('✗ Database connection failed:', error.message);
-    console.log('\n⚠️  Please make sure PostgreSQL is running:');
-    console.log('   Windows: postgresql-x64-*\\bin\\pg_ctl -D "<PostgreSQL data folder>" start');
-    console.log('   Or use: net start postgresql-x64-15 (or your version)');
-    console.log(`\n📋 Connection string: postgresql://${process.env.DB_USER}:****@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`);
-    console.log('\nℹ️  Server will continue running, but API calls requiring DB will fail.\n');
-  });
-
-// Sync Models - disabled alter to avoid issues with existing tables
-// Tables are already created, no need to sync
-// if (process.env.NODE_ENV === 'development') {
-//   sequelize.sync({ alter: true })
-//     .then(() => {
-//       console.log('✓ Database models synced');
-//     })
-//     .catch((error) => {
-//       console.error('✗ Database sync failed:', error);
-//     });
-// }
-
 // Serve static files (uploaded images) with CORS headers
 const path = require('path');
 app.use('/uploads', (req, res, next) => {
@@ -141,13 +118,6 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`\n🚀 Server running on http://localhost:${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}\n`);
-});
-
-// Graceful Shutdown
-process.on('SIGTERM', async () => {
-  console.log('SIGTERM signal received: closing HTTP server');
-  await sequelize.close();
-  process.exit(0);
 });
 
 module.exports = app;

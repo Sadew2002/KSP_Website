@@ -15,10 +15,16 @@ api.interceptors.request.use(
     const token = localStorage.getItem('authToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      console.log(`🔑 [${config.method.toUpperCase()} ${config.url}] Token attached:`, token.substring(0, 20) + '...');
+    } else {
+      console.warn(`⚠️ [${config.method.toUpperCase()} ${config.url}] No token in localStorage`);
     }
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => {
+    console.error('❌ Request interceptor error:', error);
+    return Promise.reject(error);
+  }
 );
 
 // Handle response errors

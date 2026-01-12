@@ -30,6 +30,7 @@ const Products = () => {
   const [filters, setFilters] = useState({
     brand: searchParams.get('brand') || '',
     condition: searchParams.get('condition') || '',
+    productType: searchParams.get('productType') || '',
     minPrice: '',
     maxPrice: '',
     storage: '',
@@ -47,6 +48,7 @@ const Products = () => {
     setFilters({
       brand: searchParams.get('brand') || '',
       condition: searchParams.get('condition') || '',
+      productType: searchParams.get('productType') || '',
       minPrice: searchParams.get('minPrice') || '',
       maxPrice: searchParams.get('maxPrice') || '',
       storage: searchParams.get('storage') || '',
@@ -64,6 +66,7 @@ const Products = () => {
       const params = {
         ...(filters.brand && { brand: filters.brand }),
         ...(filters.condition && { condition: filters.condition }),
+        ...(filters.productType && { productType: filters.productType }),
         ...(filters.minPrice && { minPrice: filters.minPrice }),
         ...(filters.maxPrice && { maxPrice: filters.maxPrice }),
         ...(filters.search && { search: filters.search }),
@@ -80,7 +83,7 @@ const Products = () => {
   };
 
   const clearFilters = () => {
-    setFilters({ brand: '', condition: '', minPrice: '', maxPrice: '', storage: '', search: '' });
+    setFilters({ brand: '', condition: '', productType: '', minPrice: '', maxPrice: '', storage: '', search: '' });
     setSearchParams({});
   };
 
@@ -248,6 +251,23 @@ const Products = () => {
                   {storageOptions.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
+
+              {/* Product Type Filter */}
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">Category</label>
+                <select 
+                  value={filters.productType}
+                  onChange={(e) => setFilters({ ...filters, productType: e.target.value })}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-ksp-red/20"
+                >
+                  <option value="">All Categories</option>
+                  <option value="Phones">Phones</option>
+                  <option value="Tablets">Tablets</option>
+                  <option value="Earbuds">Earbuds</option>
+                  <option value="Smartwatches">Smartwatches</option>
+                  <option value="Accessories">Accessories</option>
+                </select>
+              </div>
               
               {/* Price Range */}
               <div>
@@ -288,6 +308,12 @@ const Products = () => {
               <span className="flex items-center gap-2 px-4 py-2 bg-ksp-red/10 text-ksp-red rounded-full text-sm font-medium">
                 {filters.condition}
                 <X size={14} className="cursor-pointer hover:scale-110" onClick={() => setFilters({ ...filters, condition: '' })} />
+              </span>
+            )}
+            {filters.productType && (
+              <span className="flex items-center gap-2 px-4 py-2 bg-ksp-red/10 text-ksp-red rounded-full text-sm font-medium">
+                Category: {filters.productType}
+                <X size={14} className="cursor-pointer hover:scale-110" onClick={() => setFilters({ ...filters, productType: '' })} />
               </span>
             )}
             {filters.search && (
@@ -339,12 +365,12 @@ const Products = () => {
           }>
             {products.map((product) => {
               const stockBadge = getStockBadge(product.quantity);
-              const isFavorite = favorites.includes(product.id);
+              const isFavorite = favorites.includes(product._id);
               
               return viewMode === 'grid' ? (
                 /* Grid Card */
                 <div 
-                  key={product.id} 
+                  key={product._id}
                   className="group bg-white rounded-3xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 border border-gray-100"
                 >
                   {/* Image Container */}
@@ -373,7 +399,7 @@ const Products = () => {
                     
                     {/* Favorite Button */}
                     <button 
-                      onClick={() => toggleFavorite(product.id)}
+                      onClick={() => toggleFavorite(product._id)}
                       className={`absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center transition-all ${
                         isFavorite ? 'bg-ksp-red text-white' : 'bg-white/80 backdrop-blur-sm text-gray-600 hover:bg-ksp-red hover:text-white'
                       }`}
@@ -384,7 +410,7 @@ const Products = () => {
                     {/* Quick View Overlay */}
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
                       <Link 
-                        to={`/products/${product.id}`}
+                        to={`/products/${product._id}`}
                         className="px-6 py-3 bg-white text-gray-900 rounded-xl font-bold hover:bg-ksp-red hover:text-white transition-colors transform translate-y-4 group-hover:translate-y-0 duration-300"
                       >
                         View Details
@@ -424,7 +450,7 @@ const Products = () => {
               ) : (
                 /* List Card */
                 <div 
-                  key={product.id}
+                  key={product._id}
                   className="group bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all flex border border-gray-100"
                 >
                   <div className="w-48 h-48 bg-gradient-to-br from-gray-100 to-gray-50 flex-shrink-0 relative overflow-hidden">
@@ -463,7 +489,7 @@ const Products = () => {
                       <span className="text-2xl font-black text-gray-900">{formatPrice(product.price)}</span>
                       <div className="flex items-center gap-3">
                         <button 
-                          onClick={() => toggleFavorite(product.id)}
+                          onClick={() => toggleFavorite(product._id)}
                           className={`p-3 rounded-xl transition-all ${
                             isFavorite ? 'bg-ksp-red/10 text-ksp-red' : 'bg-gray-100 text-gray-600 hover:bg-ksp-red/10 hover:text-ksp-red'
                           }`}
@@ -471,7 +497,7 @@ const Products = () => {
                           <Heart size={20} fill={isFavorite ? 'currentColor' : 'none'} />
                         </button>
                         <Link 
-                          to={`/products/${product.id}`}
+                          to={`/products/${product._id}`}
                           className="px-5 py-3 bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200 transition-colors"
                         >
                           Details

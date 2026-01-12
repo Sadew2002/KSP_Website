@@ -82,42 +82,68 @@ const AdminDashboard = () => {
     setTimeout(() => setSuccess(''), 3000);
   };
   
+  // Generate SKU from product name and brand
+  const generateSKU = (name, brand, color = '') => {
+    if (!name || !brand) return '';
+    const nameAbbr = name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 3);
+    const brandAbbr = brand.slice(0, 3).toUpperCase();
+    const colorAbbr = color ? color.slice(0, 2).toUpperCase() : 'XX';
+    const timestamp = Date.now().toString().slice(-4);
+    return `${brandAbbr}-${nameAbbr}-${colorAbbr}-${timestamp}`;
+  };
+
   // Product form state
   const [productForm, setProductForm] = useState({
     name: '', description: '', brand: '', price: '', storage: '128GB',
-    condition: 'Brand New', color: '', ram: '8GB', quantity: 0, imageUrl: '', sku: '', isNewArrival: false, isPremiumDeal: false
+    condition: 'Brand New', color: '', ram: '8GB', quantity: 0, imageUrl: '', sku: '',
+    isNewArrival: false, isPremiumDeal: false, productType: 'Phones'
   });
 
   // Handle image upload
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
-    if (!file) return;
+    if (!file) {
+      console.log('ℹ️ No file selected');
+      return;
+    }
+
+    console.log('📤 File selected:', {
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      sizeInMB: (file.size / (1024 * 1024)).toFixed(2)
+    });
 
     // Validate file type
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
-      setError('Invalid file type. Only JPEG, JPG, PNG and WebP are allowed.');
-      setTimeout(() => setError(''), 3000);
+      const msg = `❌ Invalid file type: ${file.type}. Only JPEG, JPG, PNG and WebP are allowed.`;
+      console.warn(msg);
+      setError(msg);
+      setTimeout(() => setError(''), 5000);
       return;
     }
 
     // Validate file size (5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      setError('File too large. Maximum size is 5MB.');
-      setTimeout(() => setError(''), 3000);
+    const maxSizeBytes = 5 * 1024 * 1024;
+    if (file.size > maxSizeBytes) {
+      const msg = `❌ File too large: ${(file.size / (1024 * 1024)).toFixed(2)}MB. Maximum size is 5MB.`;
+      console.warn(msg);
+      setError(msg);
+      setTimeout(() => setError(''), 5000);
       return;
     }
 
-    // Check if product name is filled
-    if (!productForm.name || productForm.name.trim() === '') {
-      setError('Please enter the product name first before uploading an image.');
-      setTimeout(() => setError(''), 3000);
-      return;
-    }
-
-    // Show preview immediately
+    // Show preview
     const reader = new FileReader();
-    reader.onload = (e) => setImagePreview(e.target.result);
+    reader.onload = (readerEvent) => {
+      setImagePreview(readerEvent.target.result);
+      console.log('👁️ Image preview generated');
+    };
+    reader.onerror = (error) => {
+      console.error('❌ Error reading file:', error);
+      setError('Error reading image file');
+    };
     reader.readAsDataURL(file);
 
     // Upload file
@@ -127,34 +153,52 @@ const AdminDashboard = () => {
     try {
       const formData = new FormData();
       formData.append('image', file);
-      formData.append('productName', productForm.name);
       
-      console.log('📤 Uploading image:', file.name, 'Size:', (file.size / 1024).toFixed(2) + 'KB');
+      console.log('🚀 Starting upload to /api/upload/product-image');
+      console.log('📦 FormData contents:', {
+        fileField: 'image',
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type
+      });
+      console.log('🔑 Token available:', !!localStorage.getItem('authToken'));
       
       const response = await api.post('/upload/product-image', formData, {
-        headers: { 
-          'Content-Type': 'multipart/form-data'
-        },
-        timeout: 30000, // 30 second timeout
-        onUploadProgress: (progressEvent) => {
-          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-          console.log('Upload progress:', percentCompleted + '%');
-        }
+        headers: { 'Content-Type': 'multipart/form-data' }
       });
       
-      console.log('✅ Upload response:', response.data);
+      console.log('✅ Image upload response received:', response.status);
+      console.log('📎 Server response:', response.data);
       
       if (response.data.success) {
-        setProductForm(prev => ({ ...prev, imageUrl: response.data.imageUrl }));
-        setSuccess('Image uploaded successfully! URL: ' + response.data.imageUrl);
+        // Store the temporary image URL
+        // This will be renamed to use product ID after product creation
+        setProductForm(prev => ({ 
+          ...prev, 
+          imageUrl: response.data.imageUrl 
+        }));
+        console.log('💾 Image URL stored (temporary):', response.data.imageUrl);
+        console.log('💡 Image filename:', response.data.filename);
+        console.log('ℹ️ This temporary image will be renamed using the product ID after product is created');
+        setSuccess('✅ Image uploaded successfully! It will be renamed when you add the product.');
         setTimeout(() => setSuccess(''), 3000);
       } else {
-        throw new Error(response.data.message || 'Upload failed');
+        const msg = response.data.message || 'Upload failed';
+        console.error('❌ Upload failed:', msg);
+        setError(msg);
+        setImagePreview(null);
       }
     } catch (err) {
-      console.error('❌ Upload error:', err);
-      const errorMsg = err.response?.data?.message || err.message || 'Error uploading image';
-      setError(errorMsg);
+      console.error('❌ Upload error occurred:');
+      console.error('Status:', err.response?.status);
+      console.error('Data:', err.response?.data);
+      console.error('Message:', err.message);
+      console.error('Full error:', err);
+      
+      const msg = err.response?.data?.message || err.message || 'Error uploading image';
+      console.error('Final error message to show user:', msg);
+      
+      setError(msg);
       setImagePreview(null);
       setTimeout(() => setError(''), 5000);
     } finally {
@@ -165,34 +209,94 @@ const AdminDashboard = () => {
   // Check authentication on mount
   useEffect(() => {
     const token = localStorage.getItem('authToken');
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    if (!token || user.role !== 'admin') {
+    const userStr = localStorage.getItem('user');
+    
+    console.log('🔐 Checking authentication on mount');
+    console.log('🔑 Token exists:', !!token);
+    console.log('👤 User data:', userStr);
+    
+    if (!token) {
+      console.warn('❌ No token found - redirecting to login');
       navigate('/login', { state: { message: 'Please login as admin to access the dashboard' } });
-    } else {
-      setIsAuthenticated(true);
+      return;
     }
+    
+    let user;
+    try {
+      user = JSON.parse(userStr || '{}');
+    } catch (e) {
+      console.error('❌ Invalid user data in localStorage:', e);
+      localStorage.clear();
+      navigate('/login', { state: { message: 'Session invalid. Please login again.' } });
+      return;
+    }
+    
+    if (user.role !== 'admin') {
+      console.warn('❌ User is not admin:', user.role);
+      navigate('/login', { state: { message: 'Admin privileges required' } });
+      return;
+    }
+    
+    // Validate token format (JWT has 3 parts separated by dots)
+    const tokenParts = token.split('.');
+    if (tokenParts.length !== 3) {
+      console.error('❌ Invalid token format - expected JWT with 3 parts, got:', tokenParts.length);
+      localStorage.clear();
+      navigate('/login', { state: { message: 'Invalid session. Please login again.' } });
+      return;
+    }
+    
+    // Try to decode the token payload (middle part)
+    try {
+      const payload = JSON.parse(atob(tokenParts[1]));
+      const now = Math.floor(Date.now() / 1000);
+      
+      console.log('🔍 Token payload:', { 
+        userId: payload.id, 
+        email: payload.email, 
+        role: payload.role,
+        expiresAt: new Date(payload.exp * 1000).toLocaleString(),
+        isExpired: payload.exp < now 
+      });
+      
+      if (payload.exp && payload.exp < now) {
+        console.error('❌ Token expired:', new Date(payload.exp * 1000).toLocaleString());
+        localStorage.clear();
+        navigate('/login', { state: { message: 'Session expired. Please login again.' } });
+        return;
+      }
+    } catch (e) {
+      console.error('❌ Could not decode token:', e);
+      localStorage.clear();
+      navigate('/login', { state: { message: 'Invalid session. Please login again.' } });
+      return;
+    }
+    
+    console.log('✅ Authentication validated successfully');
+    setIsAuthenticated(true);
   }, [navigate]);
 
   // Fetch products from database
   const fetchProducts = async () => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated) {
+      console.log('⚠️ Not authenticated, skipping fetch');
+      return;
+    }
     setLoading(true);
     try {
-      const response = await api.get('/admin/products', { params: { search: searchTerm } });
-      setProducts(response.data.products || []);
+      console.log('📡 Fetching products...');
+      const response = await api.get('/products', { params: { search: searchTerm } });
+      const productsData = response.data.products || response.data || [];
+      console.log(`✅ Fetched ${productsData.length} products`);
+      setProducts(productsData);
     } catch (err) {
-      console.error('Error fetching products:', err);
+      console.error('❌ Error fetching products:', err.response?.data || err.message);
       if (err.response?.status === 401) {
+        console.log('🔐 Unauthorized - redirecting to login');
         navigate('/login', { state: { message: 'Session expired. Please login again.' } });
         return;
       }
-      // Fallback to public endpoint if admin fails
-      try {
-        const publicResponse = await api.get('/products');
-        setProducts(publicResponse.data.products || []);
-      } catch (e) {
-        setError('Failed to fetch products');
-      }
+      setError('Failed to fetch products');
     } finally {
       setLoading(false);
     }
@@ -212,10 +316,39 @@ const AdminDashboard = () => {
   const handleCreateProduct = async (e) => {
     if (e) e.preventDefault();
     setError('');
+    setSuccess('');
     
-    // Validate required fields
+    console.log('🔍 Form state before validation:', productForm);
+    
+    // Validate required fields with detailed messaging
     if (!productForm.name || !productForm.brand || !productForm.price || !productForm.sku) {
-      setError('Please fill in all required fields: Name, Brand, Price, and SKU');
+      const missing = [];
+      if (!productForm.name) missing.push('Name');
+      if (!productForm.brand) missing.push('Brand');
+      if (!productForm.price) missing.push('Price');
+      if (!productForm.sku) missing.push('SKU');
+      
+      const errorMsg = `Missing required fields: ${missing.join(', ')}`;
+      console.warn('⚠️ Validation failed:', errorMsg);
+      setError(errorMsg);
+      return;
+    }
+    
+    // Validate price is a valid number
+    const price = parseFloat(productForm.price);
+    if (isNaN(price) || price <= 0) {
+      const priceError = 'Price must be a valid positive number';
+      console.warn('⚠️ Price validation failed:', priceError);
+      setError(priceError);
+      return;
+    }
+    
+    // Validate quantity
+    const quantity = parseInt(productForm.quantity) || 0;
+    if (quantity < 0) {
+      const quantityError = 'Quantity cannot be negative';
+      console.warn('⚠️ Quantity validation failed:', quantityError);
+      setError(quantityError);
       return;
     }
     
@@ -223,22 +356,89 @@ const AdminDashboard = () => {
     try {
       const dataToSend = {
         ...productForm,
-        price: parseFloat(productForm.price),
-        quantity: parseInt(productForm.quantity) || 0
+        price: price,
+        quantity: quantity
       };
-      console.log('Creating product:', dataToSend);
+      
+      // Get token and validate before request
+      const token = localStorage.getItem('authToken');
+      const user = localStorage.getItem('user');
+      
+      console.log('📝 Creating product with data:', dataToSend);
+      console.log('🔑 Token available:', !!token);
+      if (token) {
+        console.log('🔑 Token (first 20 chars):', token.substring(0, 20) + '...');
+        console.log('🔑 Token length:', token.length);
+        
+        // Validate token format
+        const parts = token.split('.');
+        if (parts.length !== 3) {
+          throw new Error('Invalid token format in localStorage');
+        }
+        
+        // Check if expired
+        try {
+          const payload = JSON.parse(atob(parts[1]));
+          const now = Math.floor(Date.now() / 1000);
+          if (payload.exp && payload.exp < now) {
+            throw new Error('Token expired - please login again');
+          }
+          console.log('🔑 Token payload:', payload);
+        } catch (decodeErr) {
+          console.error('❌ Token decode error:', decodeErr.message);
+        }
+      }
+      console.log('👤 User:', user);
+      
       const response = await api.post('/admin/products', dataToSend);
-      console.log('Create response:', response.data);
+      
+      console.log('✅ Product created successfully!');
+      console.log('📦 Response data:', response.data);
+      
+      // If image was uploaded and product created, rename the image file to use product ID
+      if (productForm.imageUrl && response.data.product && response.data.product._id) {
+        const productId = response.data.product._id;
+        const tempFilename = productForm.imageUrl.split('/').pop(); // Extract filename
+        
+        console.log('🖼️ Renaming image for product:', productId);
+        
+        try {
+          const renameResponse = await api.post('/upload/rename-image', {
+            oldFilename: tempFilename,
+            productId: productId
+          });
+          
+          if (renameResponse.data.success) {
+            console.log('✅ Image renamed successfully:', renameResponse.data.imageUrl);
+            
+            // Update product with new image URL
+            const updateResponse = await api.put(`/admin/products/${productId}`, {
+              imageUrl: renameResponse.data.imageUrl
+            });
+            
+            console.log('✅ Product image URL updated:', updateResponse.data);
+          }
+        } catch (renameErr) {
+          console.warn('⚠️ Could not rename image:', renameErr.message);
+          // Don't fail the product creation if image rename fails
+        }
+      }
+      
       setSuccess('Product created successfully!');
       setShowAddProduct(false);
       resetForm();
-      fetchProducts();
+      await fetchProducts();
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
-      console.error('Create error:', err.response?.data || err);
+      console.error('❌ ERROR creating product');
+      console.error('Error response:', err.response?.data);
+      console.error('Error message:', err.message);
       console.error('Full error:', err);
-      const errorMsg = err.response?.data?.message || err.message || 'Error creating product';
-      setError(errorMsg);
+      
+      const errorMessage = err.response?.data?.message || err.message || 'Error creating product';
+      console.error('Final error message:', errorMessage);
+      
+      setError(errorMessage);
       setTimeout(() => setError(''), 5000);
     } finally {
       setLoading(false);
@@ -250,7 +450,12 @@ const AdminDashboard = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      await api.put(`/admin/products/${selectedProduct.id}`, productForm);
+      const dataToSend = {
+        ...productForm,
+        price: parseFloat(productForm.price),
+        quantity: parseInt(productForm.quantity) || 0
+      };
+      await api.put(`/admin/products/${selectedProduct._id}`, dataToSend);
       setSuccess('Product updated successfully!');
       setShowEditProduct(false);
       resetForm();
@@ -268,7 +473,7 @@ const AdminDashboard = () => {
   const handleDeleteProduct = async () => {
     setLoading(true);
     try {
-      await api.delete(`/admin/products/${selectedProduct.id}/permanent`);
+      await api.delete(`/admin/products/${selectedProduct._id}`);
       setSuccess('Product deleted successfully!');
       setShowDeleteConfirm(false);
       setSelectedProduct(null);
@@ -285,31 +490,11 @@ const AdminDashboard = () => {
   const resetForm = () => {
     setProductForm({
       name: '', description: '', brand: '', price: '', storage: '128GB',
-      condition: 'Brand New', color: '', ram: '8GB', quantity: 0, imageUrl: '', sku: '', isNewArrival: false, isPremiumDeal: false
+      condition: 'Brand New', color: '', ram: '8GB', quantity: 0, imageUrl: '', sku: '',
+      isNewArrival: false, isPremiumDeal: false, productType: 'Phones'
     });
     setSelectedProduct(null);
     setImagePreview(null);
-  };
-
-  // Auto-generate SKU based on product details
-  const generateSKU = () => {
-    const { brand, name, storage } = productForm;
-    if (!brand || !name) {
-      setError('Please enter brand and product name first');
-      setTimeout(() => setError(''), 3000);
-      return;
-    }
-    
-    // Generate SKU format: BRAND-MODEL-STORAGE-RANDOM
-    const brandCode = brand.substring(0, 3).toUpperCase();
-    const nameCode = name.split(' ').map(w => w.charAt(0)).join('').substring(0, 4).toUpperCase();
-    const storageCode = storage.replace('GB', '');
-    const randomCode = Math.floor(1000 + Math.random() * 9000);
-    
-    const generatedSKU = `${brandCode}-${nameCode}-${storageCode}-${randomCode}`;
-    setProductForm({...productForm, sku: generatedSKU});
-    setSuccess(`SKU generated: ${generatedSKU}`);
-    setTimeout(() => setSuccess(''), 3000);
   };
 
   const openEditModal = (product) => {
@@ -319,7 +504,9 @@ const AdminDashboard = () => {
       name: product.name, description: product.description || '', brand: product.brand,
       price: product.price, storage: product.storage, condition: product.condition,
       color: product.color || '', ram: product.ram || '', quantity: product.quantity,
-      imageUrl: product.imageUrl || '', sku: product.sku, isNewArrival: product.isNewArrival || false, isPremiumDeal: product.isPremiumDeal || false
+      imageUrl: product.imageUrl || '', sku: product.sku,
+      isNewArrival: product.isNewArrival || false, isPremiumDeal: product.isPremiumDeal || false,
+      productType: product.productType || 'Phones'
     });
     setShowEditProduct(true);
   };
@@ -626,7 +813,7 @@ const AdminDashboard = () => {
                         .filter(p => conditionFilter === 'all' || p.condition === conditionFilter)
                         .filter(p => !searchTerm || p.name.toLowerCase().includes(searchTerm.toLowerCase()) || p.sku?.toLowerCase().includes(searchTerm.toLowerCase()))
                         .map((product) => (
-                      <tr key={product.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                      <tr key={product._id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
                             <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${product.condition === 'Brand New' ? 'bg-green-100' : 'bg-orange-100'}`}>
@@ -772,7 +959,7 @@ const AdminDashboard = () => {
                     ) : products.filter(p => p.condition === 'Brand New').length === 0 ? (
                       <tr><td colSpan="7" className="px-6 py-12 text-center text-gray-500">No brand new products found</td></tr>
                     ) : products.filter(p => p.condition === 'Brand New').map((product) => (
-                      <tr key={product.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                      <tr key={product._id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
                             <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
@@ -909,7 +1096,7 @@ const AdminDashboard = () => {
                     ) : products.filter(p => p.condition === 'Pre-Owned').length === 0 ? (
                       <tr><td colSpan="7" className="px-6 py-12 text-center text-gray-500">No pre-owned products found</td></tr>
                     ) : products.filter(p => p.condition === 'Pre-Owned').map((product) => (
-                      <tr key={product.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                      <tr key={product._id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
                             <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
@@ -1031,7 +1218,7 @@ const AdminDashboard = () => {
                 <tbody>
                   {recentOrders.map((order, i) => (
                     <tr key={i} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 font-semibold text-ksp-red">{order.id}</td>
+                      <td className="px-6 py-4 font-semibold text-ksp-red">{order._id}</td>
                       <td className="px-6 py-4 text-gray-900">{order.customer}</td>
                       <td className="px-6 py-4 text-gray-600">{order.product}</td>
                       <td className="px-6 py-4 font-semibold text-gray-900">{order.amount}</td>
@@ -1216,21 +1403,24 @@ const AdminDashboard = () => {
             <div className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Product Name *</label>
-                <input type="text" value={productForm.name} onChange={(e) => setProductForm({...productForm, name: e.target.value})} placeholder="e.g. iPhone 15 Pro Max" className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20" />
+                <input type="text" value={productForm.name} onChange={(e) => {
+                  const newName = e.target.value;
+                  const newSKU = generateSKU(newName, productForm.brand, productForm.color);
+                  setProductForm({...productForm, name: newName, sku: newSKU});
+                }} placeholder="e.g. iPhone 15 Pro Max" className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20" />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">SKU *</label>
-                <div className="flex gap-2">
-                  <input type="text" value={productForm.sku} onChange={(e) => setProductForm({...productForm, sku: e.target.value})} placeholder="e.g. IPH-15PM-256-BLK" className="flex-1 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20" />
-                  <button type="button" onClick={generateSKU} className="px-4 py-3 bg-gray-100 hover:bg-gray-200 rounded-xl font-medium text-sm flex items-center gap-2">
-                    <Sparkles size={16} /> Generate
-                  </button>
-                </div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">SKU</label>
+                <input type="text" value={productForm.sku} onChange={(e) => setProductForm({...productForm, sku: e.target.value})} placeholder="Auto-generated (editable)" className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20 bg-blue-50" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Brand *</label>
-                  <select value={productForm.brand} onChange={(e) => setProductForm({...productForm, brand: e.target.value})} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20">
+                  <select value={productForm.brand} onChange={(e) => {
+                    const newBrand = e.target.value;
+                    const newSKU = generateSKU(productForm.name, newBrand, productForm.color);
+                    setProductForm({...productForm, brand: newBrand, sku: newSKU});
+                  }} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20">
                     <option value="">Select Brand</option>
                     <option value="Apple">Apple</option>
                     <option value="Samsung">Samsung</option>
@@ -1240,18 +1430,40 @@ const AdminDashboard = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Category</label>
-                  <select value={productForm.category} onChange={(e) => setProductForm({...productForm, category: e.target.value})} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Product Type *</label>
+                  <select value={productForm.productType} onChange={(e) => setProductForm({...productForm, productType: e.target.value})} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20">
                     <option value="Phones">Phones</option>
                     <option value="Tablets">Tablets</option>
                     <option value="Earbuds">Earbuds</option>
+                    <option value="Smartwatches">Smartwatches</option>
                     <option value="Accessories">Accessories</option>
                   </select>
                 </div>
               </div>
               <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Condition</label>
+                <select value={productForm.condition} onChange={(e) => setProductForm({...productForm, condition: e.target.value})} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20">
+                  <option value="Brand New">Brand New</option>
+                  <option value="Pre-Owned">Pre-Owned</option>
+                </select>
+              </div>
+              <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Storage</label>
                 <input type="text" value={productForm.storage} onChange={(e) => setProductForm({...productForm, storage: e.target.value})} placeholder="e.g. 256GB" className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">RAM</label>
+                  <input type="text" value={productForm.ram} onChange={(e) => setProductForm({...productForm, ram: e.target.value})} placeholder="e.g. 8GB" className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20" />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Color</label>
+                  <input type="text" value={productForm.color} onChange={(e) => {
+                    const newColor = e.target.value;
+                    const newSKU = generateSKU(productForm.name, productForm.brand, newColor);
+                    setProductForm({...productForm, color: newColor, sku: newSKU});
+                  }} placeholder="e.g. Midnight Black" className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20" />
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -1267,36 +1479,25 @@ const AdminDashboard = () => {
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Description</label>
                 <textarea rows={3} value={productForm.description} onChange={(e) => setProductForm({...productForm, description: e.target.value})} placeholder="Product description..." className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20 resize-none"></textarea>
               </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Condition</label>
-                  <select value={productForm.condition} onChange={(e) => setProductForm({...productForm, condition: e.target.value})} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20">
-                    <option value="Brand New">Brand New</option>
-                    <option value="Pre-Owned">Pre-Owned</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="flex items-center gap-3 px-4 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      checked={productForm.isNewArrival} 
-                      onChange={(e) => setProductForm({...productForm, isNewArrival: e.target.checked})}
-                      className="w-5 h-5 text-ksp-red rounded focus:ring-2 focus:ring-ksp-red/20"
-                    />
-                    <span className="text-sm font-semibold text-gray-700">New Arrival</span>
-                  </label>
-                </div>
-                <div>
-                  <label className="flex items-center gap-3 px-4 py-3 border border-green-200 rounded-xl hover:bg-green-50 transition-colors cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      checked={productForm.isPremiumDeal} 
-                      onChange={(e) => setProductForm({...productForm, isPremiumDeal: e.target.checked})}
-                      className="w-5 h-5 text-green-600 rounded focus:ring-2 focus:ring-green-500/20"
-                    />
-                    <span className="text-sm font-semibold text-gray-700">Premium Deal</span>
-                  </label>
-                </div>
+              <div className="space-y-3">
+                <label className="flex items-center gap-3">
+                  <input 
+                    type="checkbox" 
+                    checked={productForm.isNewArrival} 
+                    onChange={(e) => setProductForm({...productForm, isNewArrival: e.target.checked})} 
+                    className="w-4 h-4 cursor-pointer"
+                  />
+                  <span className="text-sm font-medium text-gray-700">Mark as New Arrival</span>
+                </label>
+                <label className="flex items-center gap-3">
+                  <input 
+                    type="checkbox" 
+                    checked={productForm.isPremiumDeal} 
+                    onChange={(e) => setProductForm({...productForm, isPremiumDeal: e.target.checked})} 
+                    className="w-4 h-4 cursor-pointer"
+                  />
+                  <span className="text-sm font-medium text-gray-700">Mark as Premium Deal</span>
+                </label>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Product Image</label>
@@ -1321,7 +1522,7 @@ const AdminDashboard = () => {
                     <label className="flex-1 flex items-center justify-center px-4 py-3 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-ksp-red/50 transition-colors">
                       <input 
                         type="file" 
-                        accept="image/png,image/jpeg,image/jpg,image/webp" 
+                        accept=".png,.jpeg,.jpg,.webp,image/png,image/jpeg,image/jpg,image/webp" 
                         onChange={handleImageUpload}
                         className="hidden"
                       />
@@ -1389,18 +1590,36 @@ const AdminDashboard = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Category</label>
-                  <select value={productForm.category} onChange={(e) => setProductForm({...productForm, category: e.target.value})} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Product Type *</label>
+                  <select value={productForm.productType} onChange={(e) => setProductForm({...productForm, productType: e.target.value})} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20">
                     <option value="Phones">Phones</option>
                     <option value="Tablets">Tablets</option>
                     <option value="Earbuds">Earbuds</option>
+                    <option value="Smartwatches">Smartwatches</option>
                     <option value="Accessories">Accessories</option>
                   </select>
                 </div>
               </div>
               <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Condition</label>
+                <select value={productForm.condition} onChange={(e) => setProductForm({...productForm, condition: e.target.value})} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20">
+                  <option value="Brand New">Brand New</option>
+                  <option value="Pre-Owned">Pre-Owned</option>
+                </select>
+              </div>
+              <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Storage</label>
                 <input type="text" value={productForm.storage} onChange={(e) => setProductForm({...productForm, storage: e.target.value})} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">RAM</label>
+                  <input type="text" value={productForm.ram} onChange={(e) => setProductForm({...productForm, ram: e.target.value})} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20" />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Color</label>
+                  <input type="text" value={productForm.color} onChange={(e) => setProductForm({...productForm, color: e.target.value})} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20" />
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -1416,36 +1635,25 @@ const AdminDashboard = () => {
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Description</label>
                 <textarea rows={3} value={productForm.description} onChange={(e) => setProductForm({...productForm, description: e.target.value})} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20 resize-none"></textarea>
               </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Condition</label>
-                  <select value={productForm.condition} onChange={(e) => setProductForm({...productForm, condition: e.target.value})} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20">
-                    <option value="Brand New">Brand New</option>
-                    <option value="Pre-Owned">Pre-Owned</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="flex items-center gap-3 px-4 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      checked={productForm.isNewArrival} 
-                      onChange={(e) => setProductForm({...productForm, isNewArrival: e.target.checked})}
-                      className="w-5 h-5 text-ksp-red rounded focus:ring-2 focus:ring-ksp-red/20"
-                    />
-                    <span className="text-sm font-semibold text-gray-700">New Arrival</span>
-                  </label>
-                </div>
-                <div>
-                  <label className="flex items-center gap-3 px-4 py-3 border border-green-200 rounded-xl hover:bg-green-50 transition-colors cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      checked={productForm.isPremiumDeal} 
-                      onChange={(e) => setProductForm({...productForm, isPremiumDeal: e.target.checked})}
-                      className="w-5 h-5 text-green-600 rounded focus:ring-2 focus:ring-green-500/20"
-                    />
-                    <span className="text-sm font-semibold text-gray-700">Premium Deal</span>
-                  </label>
-                </div>
+              <div className="space-y-3">
+                <label className="flex items-center gap-3">
+                  <input 
+                    type="checkbox" 
+                    checked={productForm.isNewArrival} 
+                    onChange={(e) => setProductForm({...productForm, isNewArrival: e.target.checked})} 
+                    className="w-4 h-4 cursor-pointer"
+                  />
+                  <span className="text-sm font-medium text-gray-700">Mark as New Arrival</span>
+                </label>
+                <label className="flex items-center gap-3">
+                  <input 
+                    type="checkbox" 
+                    checked={productForm.isPremiumDeal} 
+                    onChange={(e) => setProductForm({...productForm, isPremiumDeal: e.target.checked})} 
+                    className="w-4 h-4 cursor-pointer"
+                  />
+                  <span className="text-sm font-medium text-gray-700">Mark as Premium Deal</span>
+                </label>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Product Image</label>

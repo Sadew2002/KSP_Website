@@ -1,49 +1,48 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../config/sequelize');
+const mongoose = require('mongoose');
 
-const OrderItem = sequelize.define('OrderItem', {
-  id: {
-    type: DataTypes.UUID,
-    defaultValue: DataTypes.UUIDV4,
-    primaryKey: true
-  },
-  orderId: {
-    type: DataTypes.UUID,
-    allowNull: false,
-    references: {
-      model: 'Orders',
-      key: 'id'
+const orderItemSchema = new mongoose.Schema(
+  {
+    orderId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Order',
+      required: true,
+      index: true,
     },
-    onDelete: 'CASCADE'
+    productId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Product',
+      required: true,
+    },
+    quantity: {
+      type: Number,
+      required: true,
+      min: 1,
+    },
+    pricePerUnit: {
+      type: mongoose.Decimal128,
+      required: true,
+    },
+    subtotal: {
+      type: mongoose.Decimal128,
+      required: true,
+    },
   },
-  productId: {
-    type: DataTypes.UUID,
-    allowNull: false,
-    references: {
-      model: 'Products',
-      key: 'id'
-    }
-  },
-  quantity: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-    validate: {
-      isInt: true,
-      min: 1
-    }
-  },
-  pricePerUnit: {
-    type: DataTypes.DECIMAL(10, 2),
-    allowNull: false,
-    comment: 'Price at the time of order'
-  },
-  subtotal: {
-    type: DataTypes.DECIMAL(10, 2),
-    allowNull: false,
-    comment: 'Quantity × PricePerUnit'
+  {
+    timestamps: true,
   }
-}, {
-  timestamps: true
+);
+
+// Convert Decimal128 to Number for JSON serialization
+orderItemSchema.set('toJSON', {
+  transform: (doc, ret) => {
+    if (ret.pricePerUnit) {
+      ret.pricePerUnit = parseFloat(ret.pricePerUnit.toString());
+    }
+    if (ret.subtotal) {
+      ret.subtotal = parseFloat(ret.subtotal.toString());
+    }
+    return ret;
+  },
 });
 
-module.exports = OrderItem;
+module.exports = mongoose.model('OrderItem', orderItemSchema);
