@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Phone, Mail, MapPin, Clock, ArrowRight, Send, Facebook, Instagram, Youtube } from 'lucide-react';
 import { FaTiktok, FaWhatsapp } from 'react-icons/fa';
 
-const Footer = () => {
+const Footer = ({ showNewsletter = false }) => {
   return (
     <footer className="relative overflow-hidden" style={{ backgroundColor: '#1a1a1a', fontFamily: 'Montserrat, sans-serif' }}>
       
@@ -11,27 +11,29 @@ const Footer = () => {
       <div className="absolute top-0 left-0 w-96 h-96 bg-ksp-red/5 rounded-full -ml-48 -mt-48 blur-3xl"></div>
       <div className="absolute bottom-0 right-0 w-96 h-96 bg-ksp-red/5 rounded-full -mr-48 -mb-48 blur-3xl"></div>
       
-      {/* Newsletter Section */}
-      <div className="relative border-b border-white/10">
-        <div className="container mx-auto px-6 py-16">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-8 bg-gradient-to-r from-ksp-red to-red-700 rounded-3xl p-8 md:p-12">
-            <div className="text-center md:text-left">
-              <h3 className="text-2xl md:text-3xl font-black text-white mb-2">Stay Updated</h3>
-              <p className="text-white/80">Get exclusive deals and latest arrivals directly to your inbox.</p>
-            </div>
-            <div className="flex w-full md:w-auto">
-              <input 
-                type="email" 
-                placeholder="Enter your email" 
-                className="w-full md:w-80 px-6 py-4 rounded-l-full bg-white/10 backdrop-blur-md border border-white/20 text-white placeholder-white/60 focus:outline-none focus:border-white/50 transition-all"
-              />
-              <button className="px-8 py-4 bg-white text-ksp-red font-bold rounded-r-full hover:bg-gray-100 transition-all duration-300 flex items-center gap-2">
-                Subscribe <Send size={18} />
-              </button>
+      {/* Newsletter Section - Only shown on home page */}
+      {showNewsletter && (
+        <div className="relative border-b border-white/10">
+          <div className="container mx-auto px-6 py-16">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-8 bg-gradient-to-r from-ksp-red to-red-700 rounded-3xl p-8 md:p-12">
+              <div className="text-center md:text-left">
+                <h3 className="text-2xl md:text-3xl font-black text-white mb-2">Stay Updated</h3>
+                <p className="text-white/80">Get exclusive deals and latest arrivals directly to your inbox.</p>
+              </div>
+              <div className="flex w-full md:w-auto">
+                <input 
+                  type="email" 
+                  placeholder="Enter your email" 
+                  className="w-full md:w-80 px-6 py-4 rounded-l-full bg-white/10 backdrop-blur-md border border-white/20 text-white placeholder-white/60 focus:outline-none focus:border-white/50 transition-all"
+                />
+                <button className="px-8 py-4 bg-white text-ksp-red font-bold rounded-r-full hover:bg-gray-100 transition-all duration-300 flex items-center gap-2">
+                  Subscribe <Send size={18} />
+                </button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Main Footer Content */}
       <div className="container mx-auto px-6 py-16">

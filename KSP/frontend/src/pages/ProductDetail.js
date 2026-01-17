@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import { FaStar, FaShoppingCart, FaBox, FaShieldAlt } from 'react-icons/fa';
 import { productService } from '../services/apiService';
 
 const ProductDetail = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -114,7 +115,7 @@ const ProductDetail = () => {
 
             {/* Price */}
             <div className="mb-6 pb-6 border-b border-gray-200">
-              <p className="price-tag text-4xl">Rs. {parseFloat(product.price).toLocaleString('en-LK')}</p>
+              <p className="price-tag text-4xl">LKR {parseFloat(product.price).toLocaleString('en-LK')}</p>
             </div>
 
             {/* Description */}
@@ -177,7 +178,7 @@ const ProductDetail = () => {
                   className="w-16 text-center form-input"
                 />
                 <button
-                  onClick={() => setQuantity(quantity + 1)}
+                  onClick={() => setQuantity(Math.min(product?.quantity || 1, quantity + 1))}
                   className="btn-secondary px-4"
                 >
                   +
@@ -186,9 +187,10 @@ const ProductDetail = () => {
               <button
                 className="btn-primary w-full mb-3 disabled:opacity-50"
                 disabled={!inStock}
+                onClick={() => navigate('/place-order', { state: { product, quantity } })}
               >
                 <FaShoppingCart className="inline mr-2" />
-                Add to Cart
+                Buy Now
               </button>
               <button className="btn-secondary w-full">
                 Save for Later
@@ -201,7 +203,7 @@ const ProductDetail = () => {
                 <FaBox className="text-ksp-red text-xl flex-shrink-0 mt-1" />
                 <div>
                   <p className="font-semibold text-ksp-black">Free Shipping</p>
-                  <p className="text-sm text-gray-600">On orders over Rs. 5,000</p>
+                  <p className="text-sm text-gray-600">On orders over LKR 5,000</p>
                 </div>
               </div>
               <div className="flex gap-3">

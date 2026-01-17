@@ -151,6 +151,81 @@ router.post('/rename-image', (req, res) => {
   }
 });
 
+// Configure storage for bank slips
+const bankSlipStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadPath = path.join(__dirname, '../../uploads/bank-slips');
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    }
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const timestamp = Date.now();
+    const random = Math.round(Math.random() * 1E9);
+    const filename = `bankslip-${timestamp}-${random}${ext}`;
+    console.log(`📤 Receiving bank slip upload: ${file.originalname} → ${filename}`);
+    cb(null, filename);
+  }
+});
+
+// File filter for bank slips - allow images and PDF
+const bankSlipFileFilter = (req, file, cb) => {
+  const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf'];
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Invalid file type. Only JPEG, JPG, PNG, WebP and PDF are allowed.'), false);
+  }
+};
+
+const bankSlipUpload = multer({
+  storage: bankSlipStorage,
+  fileFilter: bankSlipFileFilter,
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB max for bank slips
+  }
+});
+
+/**
+ * POST /api/upload/bank-slip
+ * Upload a bank slip image for payment verification
+ */
+router.post('/bank-slip', bankSlipUpload.single('bankSlip'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No bank slip file provided'
+      });
+    }
+
+    const bankSlipUrl = `/uploads/bank-slips/${req.file.filename}`;
+    
+    console.log('✅ Bank slip uploaded:', {
+      filename: req.file.filename,
+      originalName: req.file.originalname,
+      size: req.file.size,
+      path: bankSlipUrl
+    });
+    
+    res.json({
+      success: true,
+      message: 'Bank slip uploaded successfully',
+      bankSlipUrl: bankSlipUrl,
+      filename: req.file.filename
+    });
+  } catch (error) {
+    console.error('Bank slip upload error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error uploading bank slip',
+      error: error.message
+    });
+  }
+});
+
 // Error handling for multer
 router.use((error, req, res, next) => {
   console.error('Upload middleware error:', error);

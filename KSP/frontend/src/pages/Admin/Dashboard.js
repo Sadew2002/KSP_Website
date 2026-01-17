@@ -25,9 +25,20 @@ import {
   AlertCircle,
   RefreshCw,
   Sparkles,
-  RotateCcw
+  RotateCcw,
+  User,
+  Lock,
+  Mail,
+  Phone,
+  MapPin,
+  CreditCard,
+  CheckCircle,
+  XCircle,
+  FileText,
+  Image
 } from 'lucide-react';
 import api from '../../services/api';
+import { authService, adminService } from '../../services/apiService';
 import { useNavigate } from 'react-router-dom';
 
 const AdminDashboard = () => {
@@ -49,6 +60,40 @@ const AdminDashboard = () => {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imagePreview, setImagePreview] = useState(null);
   const [settingsTab, setSettingsTab] = useState('store');
+  
+  // Orders state
+  const [orders, setOrders] = useState([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [orderStatusFilter, setOrderStatusFilter] = useState('all');
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [showOrderDetail, setShowOrderDetail] = useState(false);
+  
+  // Payments state
+  const [pendingPayments, setPendingPayments] = useState([]);
+  const [paymentsLoading, setPaymentsLoading] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState(null);
+  const [showPaymentDetail, setShowPaymentDetail] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+  
+  // Admin Profile state
+  const [adminProfile, setAdminProfile] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    firstName: '',
+    lastName: '',
+    phone: '',
+    address: '',
+    city: '',
+    province: '',
+    postalCode: ''
+  });
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [profileTab, setProfileTab] = useState('info');
   
   // About Us form state
   const [aboutForm, setAboutForm] = useState({
@@ -80,6 +125,196 @@ const AdminDashboard = () => {
     localStorage.setItem('aboutUsData', JSON.stringify(aboutForm));
     setSuccess('About Us content saved successfully!');
     setTimeout(() => setSuccess(''), 3000);
+  };
+
+  // Fetch admin profile
+  const fetchAdminProfile = async () => {
+    setProfileLoading(true);
+    try {
+      const response = await authService.getProfile();
+      if (response.data.success) {
+        setAdminProfile(response.data.user);
+        setProfileForm({
+          firstName: response.data.user.firstName || '',
+          lastName: response.data.user.lastName || '',
+          phone: response.data.user.phone || '',
+          address: response.data.user.address || '',
+          city: response.data.user.city || '',
+          province: response.data.user.province || '',
+          postalCode: response.data.user.postalCode || ''
+        });
+      }
+    } catch (err) {
+      console.error('Failed to fetch profile:', err);
+      setError('Failed to load profile');
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  // Load profile when profile tab is active
+  useEffect(() => {
+    if (activeTab === 'profile' && !adminProfile) {
+      fetchAdminProfile();
+    }
+  }, [activeTab]);
+
+  // Fetch all orders for admin
+  const fetchOrders = async () => {
+    setOrdersLoading(true);
+    try {
+      const params = {};
+      if (orderStatusFilter !== 'all') {
+        params.status = orderStatusFilter;
+      }
+      const response = await adminService.getAllOrders(params);
+      if (response.data.success) {
+        setOrders(response.data.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch orders:', err);
+      setError('Failed to load orders');
+    } finally {
+      setOrdersLoading(false);
+    }
+  };
+
+  // Load orders when orders tab is active
+  useEffect(() => {
+    if (activeTab === 'orders') {
+      fetchOrders();
+      // Poll for new orders every 30 seconds
+      const interval = setInterval(fetchOrders, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [activeTab, orderStatusFilter]);
+
+  // Update order status
+  const handleUpdateOrderStatus = async (orderId, newStatus) => {
+    try {
+      const response = await adminService.updateOrderStatus(orderId, newStatus);
+      if (response.data.success) {
+        setSuccess(`Order status updated to ${newStatus}`);
+        fetchOrders(); // Refresh orders
+        setTimeout(() => setSuccess(''), 3000);
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to update order status');
+      setTimeout(() => setError(''), 3000);
+    }
+  };
+
+  // Fetch pending payment verifications
+  const fetchPendingPayments = async () => {
+    setPaymentsLoading(true);
+    try {
+      const response = await adminService.getPendingVerificationOrders();
+      if (response.data.success) {
+        setPendingPayments(response.data.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch pending payments:', err);
+      setError('Failed to load pending payments');
+    } finally {
+      setPaymentsLoading(false);
+    }
+  };
+
+  // Load payments when payments tab is active
+  useEffect(() => {
+    if (activeTab === 'payments') {
+      fetchPendingPayments();
+      // Poll for new payments every 30 seconds
+      const interval = setInterval(fetchPendingPayments, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [activeTab]);
+
+  // Verify or reject payment
+  const handleVerifyPayment = async (orderId, action) => {
+    try {
+      const response = await adminService.verifyPayment(orderId, action, rejectReason);
+      if (response.data.success) {
+        setSuccess(action === 'approve' ? 'Payment verified successfully!' : 'Payment rejected');
+        setShowPaymentDetail(false);
+        setSelectedPayment(null);
+        setRejectReason('');
+        fetchPendingPayments(); // Refresh list
+        setTimeout(() => setSuccess(''), 3000);
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to verify payment');
+      setTimeout(() => setError(''), 3000);
+    }
+  };
+
+  // Handle profile form changes
+  const handleProfileFormChange = (e) => {
+    const { name, value } = e.target;
+    setProfileForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  // Handle password form changes
+  const handlePasswordFormChange = (e) => {
+    const { name, value } = e.target;
+    setPasswordForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  // Save admin profile
+  const handleSaveProfile = async () => {
+    setLoading(true);
+    setError('');
+    setSuccess('');
+    try {
+      const response = await authService.updateProfile(profileForm);
+      if (response.data.success) {
+        setAdminProfile(response.data.user);
+        // Update localStorage
+        const currentUser = authService.getCurrentUser();
+        authService.setAuthToken(localStorage.getItem('authToken'), {
+          ...currentUser,
+          ...response.data.user
+        });
+        setSuccess('Profile updated successfully!');
+        setIsEditingProfile(false);
+        setTimeout(() => setSuccess(''), 3000);
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to update profile');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Change admin password
+  const handleChangePassword = async () => {
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setError('New passwords do not match');
+      return;
+    }
+    if (passwordForm.newPassword.length < 6) {
+      setError('New password must be at least 6 characters');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    setSuccess('');
+    try {
+      const response = await authService.changePassword(
+        passwordForm.currentPassword,
+        passwordForm.newPassword
+      );
+      if (response.data.success) {
+        setSuccess('Password changed successfully!');
+        setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+        setTimeout(() => setSuccess(''), 3000);
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to change password');
+    } finally {
+      setLoading(false);
+    }
   };
   
   // Generate SKU from product name and brand
@@ -511,7 +746,28 @@ const AdminDashboard = () => {
     setShowEditProduct(true);
   };
 
-  const formatPrice = (price) => `Rs. ${parseFloat(price).toLocaleString()}`;
+  const formatPrice = (price) => {
+    if (!price) return 'LKR 0.00';
+    // Handle Decimal128 (MongoDB) which comes as $numberDecimal or object
+    let numValue = price;
+    if (typeof price === 'object') {
+      numValue = price.$numberDecimal || price.toString();
+    }
+    const parsed = parseFloat(numValue);
+    if (isNaN(parsed)) return 'LKR 0.00';
+    return `LKR ${parsed.toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+  
+  const formatAmount = (amount) => {
+    if (!amount) return 'LKR 0.00';
+    let numValue = amount;
+    if (typeof amount === 'object') {
+      numValue = amount.$numberDecimal || amount.toString();
+    }
+    const parsed = parseFloat(numValue);
+    if (isNaN(parsed)) return 'LKR 0.00';
+    return `LKR ${parsed.toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
   
   const getStockStatus = (qty) => {
     if (qty === 0) return 'Out of Stock';
@@ -528,17 +784,17 @@ const AdminDashboard = () => {
   ];
 
   const clients = [
-    { id: 1, name: 'Kasun Perera', email: 'kasun@email.com', phone: '+94 77 123 4567', orders: 12, spent: 'Rs. 458,000', status: 'Active' },
-    { id: 2, name: 'Nimali Silva', email: 'nimali@email.com', phone: '+94 71 234 5678', orders: 8, spent: 'Rs. 289,000', status: 'Active' },
-    { id: 3, name: 'Ruwan Fernando', email: 'ruwan@email.com', phone: '+94 76 345 6789', orders: 5, spent: 'Rs. 156,000', status: 'Inactive' },
-    { id: 4, name: 'Dilini Jayawardena', email: 'dilini@email.com', phone: '+94 78 456 7890', orders: 15, spent: 'Rs. 612,000', status: 'Active' }
+    { id: 1, name: 'Kasun Perera', email: 'kasun@email.com', phone: '+94 77 123 4567', orders: 12, spent: 'LKR 458,000', status: 'Active' },
+    { id: 2, name: 'Nimali Silva', email: 'nimali@email.com', phone: '+94 71 234 5678', orders: 8, spent: 'LKR 289,000', status: 'Active' },
+    { id: 3, name: 'Ruwan Fernando', email: 'ruwan@email.com', phone: '+94 76 345 6789', orders: 5, spent: 'LKR 156,000', status: 'Inactive' },
+    { id: 4, name: 'Dilini Jayawardena', email: 'dilini@email.com', phone: '+94 78 456 7890', orders: 15, spent: 'LKR 612,000', status: 'Active' }
   ];
 
   const recentOrders = [
-    { id: 'ORD-2025-001', customer: 'Kasun Perera', product: 'iPhone 15 Pro', amount: 'Rs. 389,000', status: 'Delivered', date: '2025-12-27' },
-    { id: 'ORD-2025-002', customer: 'Nimali Silva', product: 'Samsung S24', amount: 'Rs. 329,000', status: 'Shipped', date: '2025-12-26' },
-    { id: 'ORD-2025-003', customer: 'Ruwan Fernando', product: 'Xiaomi 14', amount: 'Rs. 189,000', status: 'Processing', date: '2025-12-26' },
-    { id: 'ORD-2025-004', customer: 'Dilini J.', product: 'AirPods Pro', amount: 'Rs. 78,000', status: 'Pending', date: '2025-12-25' }
+    { id: 'ORD-2025-001', customer: 'Kasun Perera', product: 'iPhone 15 Pro', amount: 'LKR 389,000', status: 'Delivered', date: '2025-12-27' },
+    { id: 'ORD-2025-002', customer: 'Nimali Silva', product: 'Samsung S24', amount: 'LKR 329,000', status: 'Shipped', date: '2025-12-26' },
+    { id: 'ORD-2025-003', customer: 'Ruwan Fernando', product: 'Xiaomi 14', amount: 'LKR 189,000', status: 'Processing', date: '2025-12-26' },
+    { id: 'ORD-2025-004', customer: 'Dilini J.', product: 'AirPods Pro', amount: 'LKR 78,000', status: 'Pending', date: '2025-12-25' }
   ];
 
   const menuItems = [
@@ -547,7 +803,9 @@ const AdminDashboard = () => {
     { id: 'pre-owned', label: 'Pre-Owned', icon: RotateCcw },
     { id: 'clients', label: 'Clients', icon: Users },
     { id: 'orders', label: 'Orders', icon: ShoppingCart },
-    { id: 'settings', label: 'Settings', icon: Settings }
+    { id: 'payments', label: 'Payments', icon: CreditCard },
+    { id: 'settings', label: 'Settings', icon: Settings },
+    { id: 'profile', label: 'My Profile', icon: User }
   ];
 
   const getStatusColor = (status) => {
@@ -1190,54 +1448,700 @@ const AdminDashboard = () => {
 
           {/* Orders Tab */}
           {activeTab === 'orders' && (
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-                <h2 className="text-xl font-bold text-gray-900">All Orders</h2>
-                <div className="flex items-center gap-2">
-                  <select className="px-4 py-2 bg-gray-100 rounded-xl text-sm font-medium focus:outline-none">
-                    <option>All Status</option>
-                    <option>Pending</option>
-                    <option>Processing</option>
-                    <option>Shipped</option>
-                    <option>Delivered</option>
-                  </select>
+            <div className="space-y-6">
+              {/* Orders Header */}
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="p-6 border-b border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900">Order Management</h2>
+                    <p className="text-sm text-gray-500">Manage and update customer orders in real-time</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button 
+                      onClick={fetchOrders}
+                      className="p-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                      title="Refresh Orders"
+                    >
+                      <RefreshCw size={18} className={ordersLoading ? 'animate-spin' : ''} />
+                    </button>
+                    <select 
+                      value={orderStatusFilter}
+                      onChange={(e) => setOrderStatusFilter(e.target.value)}
+                      className="px-4 py-2 bg-gray-100 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ksp-red/20"
+                    >
+                      <option value="all">All Status</option>
+                      <option value="pending">Pending</option>
+                      <option value="confirmed">Confirmed</option>
+                      <option value="processing">Processing</option>
+                      <option value="shipped">Shipped</option>
+                      <option value="delivered">Delivered</option>
+                      <option value="cancelled">Cancelled</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Stats Row */}
+                <div className="grid grid-cols-2 md:grid-cols-6 divide-x divide-gray-100 bg-gray-50">
+                  <div className="p-4 text-center">
+                    <p className="text-2xl font-bold text-gray-900">{orders.length}</p>
+                    <p className="text-xs text-gray-500">Total</p>
+                  </div>
+                  <div className="p-4 text-center">
+                    <p className="text-2xl font-bold text-orange-600">{orders.filter(o => o.status === 'pending').length}</p>
+                    <p className="text-xs text-gray-500">Pending</p>
+                  </div>
+                  <div className="p-4 text-center">
+                    <p className="text-2xl font-bold text-blue-600">{orders.filter(o => o.status === 'confirmed').length}</p>
+                    <p className="text-xs text-gray-500">Confirmed</p>
+                  </div>
+                  <div className="p-4 text-center">
+                    <p className="text-2xl font-bold text-yellow-600">{orders.filter(o => o.status === 'processing').length}</p>
+                    <p className="text-xs text-gray-500">Processing</p>
+                  </div>
+                  <div className="p-4 text-center">
+                    <p className="text-2xl font-bold text-purple-600">{orders.filter(o => o.status === 'shipped').length}</p>
+                    <p className="text-xs text-gray-500">Shipped</p>
+                  </div>
+                  <div className="p-4 text-center">
+                    <p className="text-2xl font-bold text-green-600">{orders.filter(o => o.status === 'delivered').length}</p>
+                    <p className="text-xs text-gray-500">Delivered</p>
+                  </div>
                 </div>
               </div>
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Order ID</th>
-                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Customer</th>
-                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Product</th>
-                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Amount</th>
-                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Date</th>
-                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Status</th>
-                    <th className="text-right px-6 py-4 text-sm font-semibold text-gray-600">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recentOrders.map((order, i) => (
-                    <tr key={i} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 font-semibold text-ksp-red">{order._id}</td>
-                      <td className="px-6 py-4 text-gray-900">{order.customer}</td>
-                      <td className="px-6 py-4 text-gray-600">{order.product}</td>
-                      <td className="px-6 py-4 font-semibold text-gray-900">{order.amount}</td>
-                      <td className="px-6 py-4 text-gray-600">{order.date}</td>
-                      <td className="px-6 py-4">
-                        <span className={`px-3 py-1 rounded-lg text-xs font-semibold ${getStatusColor(order.status)}`}>
-                          {order.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center justify-end gap-2">
-                          <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors"><Eye size={18} className="text-gray-500" /></button>
-                          <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors"><MoreVertical size={18} className="text-gray-500" /></button>
+
+              {/* Orders Table */}
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                {ordersLoading ? (
+                  <div className="p-12 text-center">
+                    <RefreshCw size={32} className="animate-spin mx-auto mb-4 text-ksp-red" />
+                    <p className="text-gray-500">Loading orders...</p>
+                  </div>
+                ) : orders.length === 0 ? (
+                  <div className="p-12 text-center">
+                    <ShoppingCart size={48} className="mx-auto mb-4 text-gray-300" />
+                    <h3 className="text-lg font-semibold text-gray-700 mb-2">No orders found</h3>
+                    <p className="text-gray-500">Orders will appear here when customers place them</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50 border-b border-gray-200">
+                        <tr>
+                          <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Order ID</th>
+                          <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Customer</th>
+                          <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Items</th>
+                          <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Amount</th>
+                          <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Payment</th>
+                          <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Date</th>
+                          <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Status</th>
+                          <th className="text-right px-6 py-4 text-sm font-semibold text-gray-600">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {orders.map((order) => (
+                          <tr key={order._id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                            <td className="px-6 py-4">
+                              <span className="font-mono font-semibold text-ksp-red">{order.orderId}</span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div>
+                                <p className="font-medium text-gray-900">
+                                  {order.userId?.firstName} {order.userId?.lastName}
+                                </p>
+                                <p className="text-xs text-gray-500">{order.userId?.email}</p>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="text-sm text-gray-600">{order.itemCount || order.items?.length || 0} item(s)</span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="font-semibold text-gray-900">
+                                {formatAmount(order.totalAmount)}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                order.paymentStatus === 'paid' ? 'bg-green-100 text-green-700' : 
+                                order.paymentStatus === 'pending_verification' ? 'bg-orange-100 text-orange-700' :
+                                'bg-yellow-100 text-yellow-700'
+                              }`}>
+                                {order.paymentMethod === 'cash_on_delivery' ? 'COD' : 
+                                 order.paymentMethod === 'bank_slip' ? 'Bank' : 'Card'} • {
+                                  order.paymentStatus === 'pending_verification' ? 'Pending Verify' : 
+                                  order.paymentStatus || 'Unpaid'
+                                }
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-600">
+                              {new Date(order.createdAt).toLocaleDateString('en-US', { 
+                                month: 'short', day: 'numeric', year: 'numeric' 
+                              })}
+                            </td>
+                            <td className="px-6 py-4">
+                              <select
+                                value={order.status}
+                                onChange={(e) => handleUpdateOrderStatus(order._id, e.target.value)}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border-0 cursor-pointer transition-colors ${
+                                  order.status === 'delivered' ? 'bg-green-100 text-green-700' :
+                                  order.status === 'shipped' ? 'bg-purple-100 text-purple-700' :
+                                  order.status === 'processing' ? 'bg-yellow-100 text-yellow-700' :
+                                  order.status === 'confirmed' ? 'bg-blue-100 text-blue-700' :
+                                  order.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                                  'bg-orange-100 text-orange-700'
+                                }`}
+                              >
+                                <option value="pending">Pending</option>
+                                <option value="confirmed">Confirmed</option>
+                                <option value="processing">Processing</option>
+                                <option value="shipped">Shipped</option>
+                                <option value="delivered">Delivered</option>
+                                <option value="cancelled">Cancelled</option>
+                              </select>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center justify-end gap-1">
+                                <button 
+                                  onClick={() => { setSelectedOrder(order); setShowOrderDetail(true); }}
+                                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                                  title="View Details"
+                                >
+                                  <Eye size={18} className="text-gray-500" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Order Detail Modal */}
+          {showOrderDetail && selectedOrder && (
+            <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-2xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+                <div className="p-6 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white z-10">
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900">Order Details</h2>
+                    <p className="text-sm text-gray-500">#{selectedOrder.orderId}</p>
+                  </div>
+                  <button 
+                    onClick={() => { setShowOrderDetail(false); setSelectedOrder(null); }}
+                    className="p-2 hover:bg-gray-100 rounded-lg"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+                
+                <div className="p-6 space-y-6">
+                  {/* Status */}
+                  <div className="flex items-center gap-4">
+                    <span className="text-sm text-gray-500">Status:</span>
+                    <select
+                      value={selectedOrder.status}
+                      onChange={(e) => {
+                        handleUpdateOrderStatus(selectedOrder._id, e.target.value);
+                        setSelectedOrder({ ...selectedOrder, status: e.target.value });
+                      }}
+                      className={`px-4 py-2 rounded-xl font-semibold border-0 cursor-pointer ${
+                        selectedOrder.status === 'delivered' ? 'bg-green-100 text-green-700' :
+                        selectedOrder.status === 'shipped' ? 'bg-purple-100 text-purple-700' :
+                        selectedOrder.status === 'processing' ? 'bg-yellow-100 text-yellow-700' :
+                        selectedOrder.status === 'confirmed' ? 'bg-blue-100 text-blue-700' :
+                        selectedOrder.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                        'bg-orange-100 text-orange-700'
+                      }`}
+                    >
+                      <option value="pending">Pending</option>
+                      <option value="confirmed">Confirmed</option>
+                      <option value="processing">Processing</option>
+                      <option value="shipped">Shipped</option>
+                      <option value="delivered">Delivered</option>
+                      <option value="cancelled">Cancelled</option>
+                    </select>
+                  </div>
+
+                  {/* Customer Info */}
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                      <Users size={18} /> Customer Information
+                    </h3>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <p className="text-gray-500">Name</p>
+                        <p className="font-medium">{selectedOrder.userId?.firstName} {selectedOrder.userId?.lastName}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">Email</p>
+                        <p className="font-medium">{selectedOrder.userId?.email}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">Phone</p>
+                        <p className="font-medium">{selectedOrder.userId?.phone || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">Payment</p>
+                        <p className="font-medium capitalize">
+                          {selectedOrder.paymentMethod === 'cash_on_delivery' ? 'Cash on Delivery' : 
+                           selectedOrder.paymentMethod === 'bank_slip' ? 'Bank Transfer' : 
+                           selectedOrder.paymentMethod}
+                          {' • '}
+                          <span className={
+                            selectedOrder.paymentStatus === 'paid' ? 'text-green-600' : 
+                            selectedOrder.paymentStatus === 'pending_verification' ? 'text-orange-600' : 
+                            'text-yellow-600'
+                          }>
+                            {selectedOrder.paymentStatus === 'pending_verification' ? 'Pending Verification' : 
+                             selectedOrder.paymentStatus || 'Unpaid'}
+                          </span>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Bank Slip - if applicable */}
+                  {selectedOrder.bankSlipUrl && (
+                    <div className="bg-blue-50 rounded-xl p-4">
+                      <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                        <FileText size={18} /> Bank Slip
+                      </h3>
+                      <div className="flex items-center gap-4">
+                        <a 
+                          href={`http://localhost:5000${selectedOrder.bankSlipUrl}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                          <Eye size={16} /> View Bank Slip
+                        </a>
+                        {selectedOrder.paymentStatus === 'pending_verification' && (
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleVerifyPayment(selectedOrder._id, 'approve')}
+                              className="inline-flex items-center gap-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
+                            >
+                              <CheckCircle size={14} /> Approve
+                            </button>
+                            <button
+                              onClick={() => { setSelectedPayment(selectedOrder); setShowPaymentDetail(true); setShowOrderDetail(false); }}
+                              className="inline-flex items-center gap-1 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
+                            >
+                              <XCircle size={14} /> Reject
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Shipping Address */}
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                      <MapPin size={18} /> Shipping Address
+                    </h3>
+                    <p className="text-gray-700">
+                      {selectedOrder.shippingAddress}
+                      {selectedOrder.shippingCity && `, ${selectedOrder.shippingCity}`}
+                      {selectedOrder.shippingProvince && `, ${selectedOrder.shippingProvince}`}
+                      {selectedOrder.shippingPostalCode && ` ${selectedOrder.shippingPostalCode}`}
+                    </p>
+                  </div>
+
+                  {/* Order Items */}
+                  <div>
+                    <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                      <Package size={18} /> Order Items
+                    </h3>
+                    <div className="space-y-3">
+                      {selectedOrder.items?.map((item, idx) => (
+                        <div key={idx} className="flex items-center gap-4 p-3 bg-gray-50 rounded-xl">
+                          <div className="w-16 h-16 bg-white rounded-lg flex items-center justify-center overflow-hidden border border-gray-200">
+                            {item.productId?.imageUrl ? (
+                              <img src={item.productId.imageUrl.startsWith('http') ? item.productId.imageUrl : `http://localhost:5000${item.productId.imageUrl}`} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <Box size={24} className="text-gray-300" />
+                            )}
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-medium text-gray-900">{item.productId?.name || 'Product'}</p>
+                            <p className="text-sm text-gray-500">{item.productId?.brand}</p>
+                            <p className="text-sm text-gray-500">Qty: {item.quantity}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-semibold text-gray-900">
+                              {formatAmount(item.pricePerUnit)}
+                            </p>
+                            <p className="text-sm text-gray-500">
+                              Subtotal: {formatAmount(item.subtotal)}
+                            </p>
+                          </div>
                         </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Total */}
+                  <div className="flex items-center justify-between p-4 bg-ksp-red/5 rounded-xl">
+                    <span className="font-semibold text-gray-900">Total Amount</span>
+                    <span className="text-2xl font-bold text-ksp-red">
+                      {formatAmount(selectedOrder.totalAmount)}
+                    </span>
+                  </div>
+
+                  {/* Order Notes */}
+                  {selectedOrder.notes && (
+                    <div className="p-4 bg-yellow-50 rounded-xl border border-yellow-100">
+                      <p className="text-xs text-yellow-700 uppercase tracking-wide mb-1 font-semibold">Customer Notes</p>
+                      <p className="text-gray-700">{selectedOrder.notes}</p>
+                    </div>
+                  )}
+
+                  {/* Timestamps */}
+                  <div className="text-sm text-gray-500 space-y-1">
+                    <p>Created: {new Date(selectedOrder.createdAt).toLocaleString()}</p>
+                    {selectedOrder.updatedAt && (
+                      <p>Last Updated: {new Date(selectedOrder.updatedAt).toLocaleString()}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Payments Tab */}
+          {activeTab === 'payments' && (
+            <div className="space-y-6">
+              {/* Header */}
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="p-6 border-b border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl font-bold text-gray-900">Payment Verification</h2>
+                      <p className="text-sm text-gray-500 mt-1">Verify bank slip payments and other payment methods</p>
+                    </div>
+                    <button 
+                      onClick={fetchPendingPayments}
+                      className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
+                    >
+                      <RefreshCw size={16} className={paymentsLoading ? 'animate-spin' : ''} />
+                      Refresh
+                    </button>
+                  </div>
+                </div>
+
+                {/* Stats Row */}
+                <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-gray-100 bg-gray-50">
+                  <div className="p-4 text-center">
+                    <p className="text-2xl font-bold text-orange-600">{pendingPayments.length}</p>
+                    <p className="text-xs text-gray-500">Pending Verification</p>
+                  </div>
+                  <div className="p-4 text-center">
+                    <p className="text-2xl font-bold text-blue-600">
+                      {pendingPayments.filter(p => p.paymentMethod === 'bank_slip').length}
+                    </p>
+                    <p className="text-xs text-gray-500">Bank Transfers</p>
+                  </div>
+                  <div className="p-4 text-center">
+                    <p className="text-2xl font-bold text-purple-600">
+                      {pendingPayments.filter(p => p.paymentMethod === 'payhere').length}
+                    </p>
+                    <p className="text-xs text-gray-500">PayHere</p>
+                  </div>
+                  <div className="p-4 text-center">
+                    <p className="text-2xl font-bold text-green-600">
+                      {formatAmount(pendingPayments.reduce((sum, p) => {
+                        let val = p.totalAmount;
+                        if (typeof val === 'object') val = val.$numberDecimal || val.toString();
+                        return sum + (parseFloat(val) || 0);
+                      }, 0))}
+                    </p>
+                    <p className="text-xs text-gray-500">Total Value</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Pending Payments List */}
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                {paymentsLoading ? (
+                  <div className="p-12 text-center">
+                    <RefreshCw size={32} className="animate-spin mx-auto mb-4 text-ksp-red" />
+                    <p className="text-gray-500">Loading pending payments...</p>
+                  </div>
+                ) : pendingPayments.length === 0 ? (
+                  <div className="p-12 text-center">
+                    <CheckCircle size={48} className="mx-auto mb-4 text-green-300" />
+                    <h3 className="text-lg font-semibold text-gray-700 mb-2">All payments verified!</h3>
+                    <p className="text-gray-500">No pending payment verifications at this time</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50 border-b border-gray-200">
+                        <tr>
+                          <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Order ID</th>
+                          <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Customer</th>
+                          <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Amount</th>
+                          <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Payment Method</th>
+                          <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Bank Slip</th>
+                          <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Date</th>
+                          <th className="text-right px-6 py-4 text-sm font-semibold text-gray-600">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pendingPayments.map((payment) => (
+                          <tr key={payment._id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                            <td className="px-6 py-4">
+                              <span className="font-mono font-semibold text-ksp-red">{payment.orderId}</span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div>
+                                <p className="font-medium text-gray-900">
+                                  {payment.userId?.firstName} {payment.userId?.lastName}
+                                </p>
+                                <p className="text-xs text-gray-500">{payment.userId?.email}</p>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="font-semibold text-gray-900">
+                                {formatAmount(payment.totalAmount)}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className={`px-3 py-1 rounded-lg text-xs font-semibold ${
+                                payment.paymentMethod === 'bank_slip' ? 'bg-blue-100 text-blue-700' :
+                                payment.paymentMethod === 'payhere' ? 'bg-purple-100 text-purple-700' :
+                                'bg-gray-100 text-gray-700'
+                              }`}>
+                                {payment.paymentMethod === 'bank_slip' ? 'Bank Transfer' : 
+                                 payment.paymentMethod === 'cash_on_delivery' ? 'COD' : 
+                                 payment.paymentMethod}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              {payment.bankSlipUrl ? (
+                                <a 
+                                  href={`http://localhost:5000${payment.bankSlipUrl}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-1 text-blue-600 hover:text-blue-700 text-sm"
+                                >
+                                  <Image size={16} /> View Slip
+                                </a>
+                              ) : (
+                                <span className="text-gray-400 text-sm">N/A</span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-600">
+                              {new Date(payment.createdAt).toLocaleDateString('en-US', { 
+                                month: 'short', day: 'numeric', year: 'numeric' 
+                              })}
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center justify-end gap-2">
+                                <button 
+                                  onClick={() => { setSelectedPayment(payment); setShowPaymentDetail(true); }}
+                                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                                  title="View Details"
+                                >
+                                  <Eye size={18} className="text-gray-500" />
+                                </button>
+                                <button 
+                                  onClick={() => handleVerifyPayment(payment._id, 'approve')}
+                                  className="p-2 hover:bg-green-100 rounded-lg transition-colors"
+                                  title="Approve Payment"
+                                >
+                                  <CheckCircle size={18} className="text-green-600" />
+                                </button>
+                                <button 
+                                  onClick={() => { setSelectedPayment(payment); setShowPaymentDetail(true); }}
+                                  className="p-2 hover:bg-red-100 rounded-lg transition-colors"
+                                  title="Reject Payment"
+                                >
+                                  <XCircle size={18} className="text-red-600" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Payment Detail Modal */}
+          {showPaymentDetail && selectedPayment && (
+            <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-2xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+                <div className="p-6 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white z-10">
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900">Payment Verification</h2>
+                    <p className="text-sm text-gray-500">Order #{selectedPayment.orderId}</p>
+                  </div>
+                  <button 
+                    onClick={() => { setShowPaymentDetail(false); setSelectedPayment(null); setRejectReason(''); }}
+                    className="p-2 hover:bg-gray-100 rounded-lg"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+                
+                <div className="p-6 space-y-6">
+                  {/* Customer Info */}
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                      <Users size={18} /> Customer Information
+                    </h3>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <p className="text-gray-500">Name</p>
+                        <p className="font-medium">{selectedPayment.userId?.firstName} {selectedPayment.userId?.lastName}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">Email</p>
+                        <p className="font-medium">{selectedPayment.userId?.email}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">Phone</p>
+                        <p className="font-medium">{selectedPayment.userId?.phone || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">Order Date</p>
+                        <p className="font-medium">{new Date(selectedPayment.createdAt).toLocaleString()}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Payment Details */}
+                  <div className="bg-blue-50 rounded-xl p-4">
+                    <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                      <CreditCard size={18} /> Payment Details
+                    </h3>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <p className="text-gray-500">Payment Method</p>
+                        <p className="font-medium capitalize">
+                          {selectedPayment.paymentMethod === 'bank_slip' ? 'Bank Transfer' : selectedPayment.paymentMethod}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">Amount</p>
+                        <p className="font-bold text-lg text-ksp-red">
+                          {formatAmount(selectedPayment.totalAmount)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">Payment Status</p>
+                        <span className="px-3 py-1 rounded-lg text-xs font-semibold bg-orange-100 text-orange-700">
+                          Pending Verification
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Bank Slip Preview */}
+                  {selectedPayment.bankSlipUrl && (
+                    <div className="bg-gray-50 rounded-xl p-4">
+                      <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                        <FileText size={18} /> Bank Slip
+                      </h3>
+                      <div className="border rounded-xl overflow-hidden bg-white">
+                        {selectedPayment.bankSlipUrl.endsWith('.pdf') ? (
+                          <div className="p-8 text-center">
+                            <FileText size={48} className="mx-auto mb-4 text-red-500" />
+                            <p className="text-gray-600 mb-4">PDF Bank Slip</p>
+                            <a 
+                              href={`http://localhost:5000${selectedPayment.bankSlipUrl}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-2 px-4 py-2 bg-ksp-red text-white rounded-lg hover:bg-red-700 transition-colors"
+                            >
+                              <Eye size={16} /> View PDF
+                            </a>
+                          </div>
+                        ) : (
+                          <img 
+                            src={`http://localhost:5000${selectedPayment.bankSlipUrl}`}
+                            alt="Bank Slip"
+                            className="w-full max-h-96 object-contain"
+                          />
+                        )}
+                      </div>
+                      <a 
+                        href={`http://localhost:5000${selectedPayment.bankSlipUrl}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-3 inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 text-sm"
+                      >
+                        <Eye size={14} /> Open in new tab
+                      </a>
+                    </div>
+                  )}
+
+                  {/* Order Items */}
+                  <div>
+                    <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                      <Package size={18} /> Order Items
+                    </h3>
+                    <div className="space-y-3">
+                      {selectedPayment.items?.map((item, idx) => (
+                        <div key={idx} className="flex items-center gap-4 p-3 bg-gray-50 rounded-xl">
+                          <div className="w-16 h-16 bg-white rounded-lg flex items-center justify-center overflow-hidden border border-gray-200">
+                            {item.productId?.imageUrl ? (
+                              <img src={item.productId.imageUrl.startsWith('http') ? item.productId.imageUrl : `http://localhost:5000${item.productId.imageUrl}`} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <Box size={24} className="text-gray-300" />
+                            )}
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-medium text-gray-900">{item.productId?.name || 'Product'}</p>
+                            <p className="text-sm text-gray-500">{item.productId?.brand}</p>
+                            <p className="text-sm text-gray-500">Qty: {item.quantity}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-semibold text-gray-900">
+                              {formatAmount(item.pricePerUnit)}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Rejection Reason */}
+                  <div className="bg-red-50 rounded-xl p-4">
+                    <h3 className="font-semibold text-gray-900 mb-3">Rejection Reason (Optional)</h3>
+                    <textarea
+                      value={rejectReason}
+                      onChange={(e) => setRejectReason(e.target.value)}
+                      placeholder="Enter reason for rejection if applicable..."
+                      className="w-full px-4 py-3 border border-red-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 bg-white"
+                      rows={3}
+                    />
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-4">
+                    <button
+                      onClick={() => handleVerifyPayment(selectedPayment._id, 'approve')}
+                      className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-colors"
+                    >
+                      <CheckCircle size={20} /> Approve Payment
+                    </button>
+                    <button
+                      onClick={() => handleVerifyPayment(selectedPayment._id, 'reject')}
+                      className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors"
+                    >
+                      <XCircle size={20} /> Reject Payment
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
@@ -1387,6 +2291,316 @@ const AdminDashboard = () => {
             </div>
           )}
 
+          {/* Profile Tab */}
+          {activeTab === 'profile' && (
+            <div className="max-w-4xl">
+              {/* Profile Tabs */}
+              <div className="flex items-center gap-2 mb-6 bg-white rounded-xl p-2 shadow-sm border border-gray-100">
+                <button
+                  onClick={() => setProfileTab('info')}
+                  className={`px-6 py-3 rounded-lg font-semibold transition-all flex items-center gap-2 ${profileTab === 'info' ? 'bg-ksp-red text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                >
+                  <User size={18} /> Profile Info
+                </button>
+                <button
+                  onClick={() => setProfileTab('security')}
+                  className={`px-6 py-3 rounded-lg font-semibold transition-all flex items-center gap-2 ${profileTab === 'security' ? 'bg-ksp-red text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                >
+                  <Lock size={18} /> Security
+                </button>
+              </div>
+
+              {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">{error}</div>}
+              {success && <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-xl text-green-600 text-sm">{success}</div>}
+
+              {profileLoading ? (
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center">
+                  <RefreshCw size={32} className="animate-spin mx-auto mb-4 text-ksp-red" />
+                  <p className="text-gray-600">Loading profile...</p>
+                </div>
+              ) : (
+                <>
+                  {/* Profile Info Tab */}
+                  {profileTab === 'info' && adminProfile && (
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                      {/* Profile Card */}
+                      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 text-center">
+                        <div className="w-24 h-24 bg-gradient-to-br from-ksp-red to-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <span className="text-3xl font-bold text-white">
+                            {adminProfile.firstName?.charAt(0)}{adminProfile.lastName?.charAt(0)}
+                          </span>
+                        </div>
+                        <h2 className="text-xl font-bold text-gray-900 mb-1">
+                          {adminProfile.firstName} {adminProfile.lastName}
+                        </h2>
+                        <p className="text-gray-500 mb-3">{adminProfile.email}</p>
+                        <span className="inline-block px-4 py-1 bg-ksp-red/10 text-ksp-red rounded-full text-sm font-semibold capitalize">
+                          {adminProfile.role}
+                        </span>
+                        <div className="mt-6 pt-6 border-t border-gray-100">
+                          <p className="text-sm text-gray-500">
+                            Member since {new Date(adminProfile.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                          </p>
+                          {adminProfile.lastLogin && (
+                            <p className="text-xs text-gray-400 mt-1">
+                              Last login: {new Date(adminProfile.lastLogin).toLocaleString()}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Profile Details */}
+                      <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                        <div className="flex justify-between items-center mb-6">
+                          <h2 className="text-xl font-bold text-gray-900">Profile Details</h2>
+                          {!isEditingProfile ? (
+                            <button
+                              onClick={() => setIsEditingProfile(true)}
+                              className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200 transition-colors"
+                            >
+                              <Edit size={16} /> Edit
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                setIsEditingProfile(false);
+                                setProfileForm({
+                                  firstName: adminProfile.firstName || '',
+                                  lastName: adminProfile.lastName || '',
+                                  phone: adminProfile.phone || '',
+                                  address: adminProfile.address || '',
+                                  city: adminProfile.city || '',
+                                  province: adminProfile.province || '',
+                                  postalCode: adminProfile.postalCode || ''
+                                });
+                              }}
+                              className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200 transition-colors"
+                            >
+                              <X size={16} /> Cancel
+                            </button>
+                          )}
+                        </div>
+
+                        {!isEditingProfile ? (
+                          <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
+                                <User size={20} className="text-ksp-red" />
+                                <div>
+                                  <p className="text-xs text-gray-500">First Name</p>
+                                  <p className="font-semibold text-gray-900">{adminProfile.firstName || '-'}</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
+                                <User size={20} className="text-ksp-red" />
+                                <div>
+                                  <p className="text-xs text-gray-500">Last Name</p>
+                                  <p className="font-semibold text-gray-900">{adminProfile.lastName || '-'}</p>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
+                              <Mail size={20} className="text-ksp-red" />
+                              <div>
+                                <p className="text-xs text-gray-500">Email</p>
+                                <p className="font-semibold text-gray-900">{adminProfile.email}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
+                              <Phone size={20} className="text-ksp-red" />
+                              <div>
+                                <p className="text-xs text-gray-500">Phone</p>
+                                <p className="font-semibold text-gray-900">{adminProfile.phone || 'Not provided'}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
+                              <MapPin size={20} className="text-ksp-red" />
+                              <div>
+                                <p className="text-xs text-gray-500">Address</p>
+                                <p className="font-semibold text-gray-900">{adminProfile.address || 'Not provided'}</p>
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-3 gap-4">
+                              <div className="p-4 bg-gray-50 rounded-xl">
+                                <p className="text-xs text-gray-500">City</p>
+                                <p className="font-semibold text-gray-900">{adminProfile.city || '-'}</p>
+                              </div>
+                              <div className="p-4 bg-gray-50 rounded-xl">
+                                <p className="text-xs text-gray-500">Province</p>
+                                <p className="font-semibold text-gray-900">{adminProfile.province || '-'}</p>
+                              </div>
+                              <div className="p-4 bg-gray-50 rounded-xl">
+                                <p className="text-xs text-gray-500">Postal Code</p>
+                                <p className="font-semibold text-gray-900">{adminProfile.postalCode || '-'}</p>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">First Name</label>
+                                <input
+                                  type="text"
+                                  name="firstName"
+                                  value={profileForm.firstName}
+                                  onChange={handleProfileFormChange}
+                                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">Last Name</label>
+                                <input
+                                  type="text"
+                                  name="lastName"
+                                  value={profileForm.lastName}
+                                  onChange={handleProfileFormChange}
+                                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20"
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-semibold text-gray-700 mb-2">Email</label>
+                              <input
+                                type="email"
+                                value={adminProfile.email}
+                                disabled
+                                className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-gray-100 text-gray-500"
+                              />
+                              <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-semibold text-gray-700 mb-2">Phone</label>
+                              <input
+                                type="tel"
+                                name="phone"
+                                value={profileForm.phone}
+                                onChange={handleProfileFormChange}
+                                placeholder="Enter phone number"
+                                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-semibold text-gray-700 mb-2">Address</label>
+                              <input
+                                type="text"
+                                name="address"
+                                value={profileForm.address}
+                                onChange={handleProfileFormChange}
+                                placeholder="Enter address"
+                                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20"
+                              />
+                            </div>
+                            <div className="grid grid-cols-3 gap-4">
+                              <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">City</label>
+                                <input
+                                  type="text"
+                                  name="city"
+                                  value={profileForm.city}
+                                  onChange={handleProfileFormChange}
+                                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">Province</label>
+                                <select
+                                  name="province"
+                                  value={profileForm.province}
+                                  onChange={handleProfileFormChange}
+                                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20"
+                                >
+                                  <option value="">Select Province</option>
+                                  <option value="Western">Western</option>
+                                  <option value="Central">Central</option>
+                                  <option value="Southern">Southern</option>
+                                  <option value="Northern">Northern</option>
+                                  <option value="Eastern">Eastern</option>
+                                  <option value="North Western">North Western</option>
+                                  <option value="North Central">North Central</option>
+                                  <option value="Uva">Uva</option>
+                                  <option value="Sabaragamuwa">Sabaragamuwa</option>
+                                </select>
+                              </div>
+                              <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">Postal Code</label>
+                                <input
+                                  type="text"
+                                  name="postalCode"
+                                  value={profileForm.postalCode}
+                                  onChange={handleProfileFormChange}
+                                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20"
+                                />
+                              </div>
+                            </div>
+                            <button
+                              onClick={handleSaveProfile}
+                              disabled={loading}
+                              className="flex items-center gap-2 px-6 py-3 bg-ksp-red text-white rounded-xl font-semibold hover:bg-red-600 transition-colors disabled:opacity-50"
+                            >
+                              <Save size={18} /> {loading ? 'Saving...' : 'Save Changes'}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Security Tab */}
+                  {profileTab === 'security' && (
+                    <div className="max-w-xl">
+                      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                        <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                          <Lock size={20} className="text-ksp-red" /> Change Password
+                        </h2>
+                        <div className="space-y-4">
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">Current Password</label>
+                            <input
+                              type="password"
+                              name="currentPassword"
+                              value={passwordForm.currentPassword}
+                              onChange={handlePasswordFormChange}
+                              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">New Password</label>
+                            <input
+                              type="password"
+                              name="newPassword"
+                              value={passwordForm.newPassword}
+                              onChange={handlePasswordFormChange}
+                              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Minimum 6 characters</p>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">Confirm New Password</label>
+                            <input
+                              type="password"
+                              name="confirmPassword"
+                              value={passwordForm.confirmPassword}
+                              onChange={handlePasswordFormChange}
+                              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20"
+                            />
+                          </div>
+                          <button
+                            onClick={handleChangePassword}
+                            disabled={loading}
+                            className="flex items-center gap-2 px-6 py-3 bg-ksp-red text-white rounded-xl font-semibold hover:bg-red-600 transition-colors disabled:opacity-50"
+                          >
+                            <Lock size={18} /> {loading ? 'Changing...' : 'Change Password'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
         </div>
       </main>
 
@@ -1467,7 +2681,7 @@ const AdminDashboard = () => {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Price (Rs.) *</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Price (LKR) *</label>
                   <input type="number" value={productForm.price} onChange={(e) => setProductForm({...productForm, price: e.target.value})} placeholder="389000" className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20" />
                 </div>
                 <div>
@@ -1623,7 +2837,7 @@ const AdminDashboard = () => {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Price (Rs.) *</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Price (LKR) *</label>
                   <input type="number" value={productForm.price} onChange={(e) => setProductForm({...productForm, price: e.target.value})} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-ksp-red/20" />
                 </div>
                 <div>

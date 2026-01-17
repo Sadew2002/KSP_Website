@@ -77,7 +77,7 @@ router.get('/', async (req, res) => {
 router.put('/:orderId/status', async (req, res) => {
   try {
     const { orderId } = req.params;
-    const { status } = req.body;
+    let { status } = req.body;
 
     // Validate orderId is valid MongoDB ObjectId
     if (!mongoose.Types.ObjectId.isValid(orderId)) {
@@ -87,9 +87,11 @@ router.put('/:orderId/status', async (req, res) => {
       });
     }
 
-    // Validate status
-    const validStatuses = ['Pending', 'Confirmed', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
-    if (!validStatuses.includes(status)) {
+    // Validate and normalize status (accept both lowercase and capitalized)
+    const validStatuses = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'];
+    const normalizedStatus = status?.toLowerCase();
+    
+    if (!validStatuses.includes(normalizedStatus)) {
       return res.status(400).json({
         success: false,
         error: `Invalid status. Must be one of: ${validStatuses.join(', ')}`
@@ -99,7 +101,7 @@ router.put('/:orderId/status', async (req, res) => {
     // Find and update order
     const order = await Order.findByIdAndUpdate(
       orderId,
-      { status, updatedAt: new Date() },
+      { status: normalizedStatus, updatedAt: new Date() },
       { new: true, runValidators: true }
     ).populate('userId', 'firstName lastName email');
 
@@ -120,6 +122,44 @@ router.put('/:orderId/status', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to update order status'
+    });
+  }
+});
+
+/**
+ * GET /api/admin/orders/pending-verification
+ * Get all orders pending payment verification
+ * NOTE: This route MUST be defined before /:orderId routes
+ */
+router.get('/pending-verification', async (req, res) => {
+  try {
+    const orders = await Order.find({ paymentStatus: 'pending_verification' })
+      .populate('userId', 'firstName lastName email phone')
+      .sort({ createdAt: -1 });
+
+    // Get items for each order
+    const ordersWithItems = await Promise.all(
+      orders.map(async (order) => {
+        const items = await OrderItem.find({ orderId: order._id })
+          .populate('productId', 'name brand price imageUrl');
+        return {
+          ...order.toObject(),
+          items,
+          itemCount: items.length
+        };
+      })
+    );
+
+    res.json({
+      success: true,
+      data: ordersWithItems,
+      count: ordersWithItems.length
+    });
+  } catch (error) {
+    console.error('Get pending verification orders error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch pending verification orders'
     });
   }
 });
@@ -168,6 +208,69 @@ router.put('/:orderId/tracking', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to update tracking information'
+    });
+  }
+});
+
+/**
+ * PUT /api/admin/orders/:orderId/verify-payment
+ * Verify or reject payment (for bank slip and other methods)
+ */
+router.put('/:orderId/verify-payment', async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { action, reason } = req.body; // action: 'approve' or 'reject'
+    const adminId = req.user.id;
+
+    // Validate orderId is valid MongoDB ObjectId
+    if (!mongoose.Types.ObjectId.isValid(orderId)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid order ID'
+      });
+    }
+
+    // Validate action
+    if (!['approve', 'reject'].includes(action)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid action. Must be either "approve" or "reject"'
+      });
+    }
+
+    // Find order
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        error: 'Order not found'
+      });
+    }
+
+    // Update payment status based on action
+    if (action === 'approve') {
+      order.paymentStatus = 'paid';
+      order.status = order.status === 'pending' ? 'confirmed' : order.status;
+    } else {
+      order.paymentStatus = 'failed';
+      order.notes = order.notes 
+        ? `${order.notes}\n\nPayment Rejected: ${reason || 'No reason provided'}` 
+        : `Payment Rejected: ${reason || 'No reason provided'}`;
+    }
+    
+    order.updatedAt = new Date();
+    await order.save();
+
+    res.json({
+      success: true,
+      message: action === 'approve' ? 'Payment verified successfully' : 'Payment rejected',
+      data: order
+    });
+  } catch (error) {
+    console.error('Verify payment error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to verify payment'
     });
   }
 });

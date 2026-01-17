@@ -20,14 +20,41 @@ router.get('/', async (req, res) => {
       .populate('userId', 'firstName lastName email')
       .sort({ createdAt: -1 });
 
-    // Get order items for each order
+    // Get order items for each order and format for frontend
     const ordersWithItems = await Promise.all(
       orders.map(async (order) => {
         const items = await OrderItem.find({ orderId: order._id })
           .populate('productId', 'name brand price imageUrl');
+        
+        // Format items for frontend display
+        const formattedItems = items.map(item => ({
+          _id: item._id,
+          product: item.productId ? {
+            name: item.productId.name,
+            brand: item.productId.brand,
+            image: item.productId.imageUrl
+          } : { name: 'Product Unavailable', image: null },
+          quantity: item.quantity,
+          price: parseFloat(item.pricePerUnit?.toString() || item.subtotal?.toString() || 0)
+        }));
+
+        // Format full shipping address
+        const fullAddress = [order.shippingAddress, order.shippingCity, order.shippingProvince, order.shippingPostalCode]
+          .filter(Boolean)
+          .join(', ');
+
         return {
-          ...order.toObject(),
-          items
+          _id: order._id,
+          orderId: order.orderId,
+          status: order.status,
+          createdAt: order.createdAt,
+          totalAmount: parseFloat(order.totalAmount?.toString() || 0),
+          paymentMethod: order.paymentMethod === 'cash_on_delivery' ? 'cod' : 'card',
+          paymentStatus: order.paymentStatus,
+          shippingAddress: fullAddress,
+          trackingNumber: order.trackingNumber,
+          notes: order.notes,
+          items: formattedItems
         };
       })
     );
@@ -77,11 +104,40 @@ router.get('/:orderId', async (req, res) => {
     const items = await OrderItem.find({ orderId: order._id })
       .populate('productId', 'name brand price imageUrl storage condition');
 
+    // Format response for frontend
+    const formattedItems = items.map(item => ({
+      _id: item._id,
+      productId: item.productId,
+      product: item.productId ? {
+        name: item.productId.name,
+        brand: item.productId.brand,
+        image: item.productId.imageUrl
+      } : null,
+      quantity: item.quantity,
+      pricePerUnit: parseFloat(item.pricePerUnit?.toString() || 0),
+      price: parseFloat(item.pricePerUnit?.toString() || 0),
+      subtotal: parseFloat(item.subtotal?.toString() || 0)
+    }));
+
     res.json({
       success: true,
       data: {
-        ...order.toObject(),
-        items
+        _id: order._id,
+        orderId: order.orderId,
+        status: order.status,
+        createdAt: order.createdAt,
+        updatedAt: order.updatedAt,
+        totalAmount: parseFloat(order.totalAmount?.toString() || 0),
+        paymentMethod: order.paymentMethod,
+        paymentStatus: order.paymentStatus,
+        shippingAddress: order.shippingAddress,
+        shippingCity: order.shippingCity,
+        shippingProvince: order.shippingProvince,
+        shippingPostalCode: order.shippingPostalCode,
+        trackingNumber: order.trackingNumber,
+        notes: order.notes,
+        user: order.userId,
+        items: formattedItems
       }
     });
   } catch (error) {
@@ -172,6 +228,111 @@ router.post('/checkout', async (req, res) => {
     });
   } catch (error) {
     console.error('Checkout error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create order'
+    });
+  }
+});
+
+/**
+ * POST /api/orders/direct
+ * Create order directly from product page (without cart)
+ */
+router.post('/direct', async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { 
+      productId, 
+      quantity, 
+      shippingAddress, 
+      shippingCity, 
+      shippingProvince, 
+      shippingPostalCode, 
+      paymentMethod,
+      notes,
+      bankSlipUrl
+    } = req.body;
+
+    // Validate required fields
+    if (!productId || !quantity || !shippingAddress || !shippingCity || !shippingProvince || !shippingPostalCode || !paymentMethod) {
+      return res.status(400).json({
+        success: false,
+        error: 'All fields are required: productId, quantity, shippingAddress, shippingCity, shippingProvince, shippingPostalCode, paymentMethod'
+      });
+    }
+
+    // Get product details
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        error: 'Product not found'
+      });
+    }
+
+    // Check stock availability
+    if (product.quantity < quantity) {
+      return res.status(400).json({
+        success: false,
+        error: `Insufficient stock. Only ${product.quantity} items available.`
+      });
+    }
+
+    // Calculate total
+    const pricePerUnit = parseFloat(product.price);
+    const subtotal = pricePerUnit * quantity;
+    const totalAmount = parseFloat(subtotal.toFixed(2));
+
+    // Generate order ID
+    const { generateOrderId } = require('../utils/generators');
+    const orderId = generateOrderId();
+
+    // Create order
+    const order = await Order.create({
+      orderId,
+      userId,
+      totalAmount,
+      status: 'pending',
+      paymentMethod,
+      paymentStatus: paymentMethod === 'bank_slip' ? 'pending_verification' : 'unpaid',
+      bankSlipUrl: paymentMethod === 'bank_slip' ? bankSlipUrl : null,
+      shippingAddress,
+      shippingCity,
+      shippingProvince,
+      shippingPostalCode,
+      notes: notes || null
+    });
+
+    // Create order item
+    await OrderItem.create({
+      orderId: order._id,
+      productId: product._id,
+      quantity,
+      pricePerUnit,
+      subtotal: totalAmount
+    });
+
+    // Reduce product stock
+    await Product.findByIdAndUpdate(
+      productId,
+      { $inc: { quantity: -quantity } }
+    );
+
+    // Get the created order with items
+    const orderItems = await OrderItem.find({ orderId: order._id })
+      .populate('productId', 'name brand price imageUrl');
+
+    res.status(201).json({
+      success: true,
+      message: 'Order placed successfully',
+      data: {
+        ...order.toObject(),
+        items: orderItems
+      }
+    });
+  } catch (error) {
+    console.error('Direct order error:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to create order'

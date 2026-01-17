@@ -16,14 +16,27 @@ const paymentSchema = new mongoose.Schema(
     },
     paymentMethod: {
       type: String,
-      enum: ['cash_on_delivery', 'payhere', 'stripe'],
+      enum: ['cash_on_delivery', 'payhere', 'stripe', 'bank_slip'],
       required: true,
     },
     status: {
       type: String,
-      enum: ['pending', 'completed', 'failed', 'refunded'],
+      enum: ['pending', 'pending_verification', 'completed', 'failed', 'refunded'],
       default: 'pending',
       index: true,
+    },
+    bankSlipUrl: {
+      type: String,
+      default: null,
+    },
+    verifiedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    verifiedAt: {
+      type: Date,
+      default: null,
     },
     transactionId: {
       type: String,

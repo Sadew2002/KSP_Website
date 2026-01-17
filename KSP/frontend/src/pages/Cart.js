@@ -26,7 +26,7 @@ const Cart = () => {
             <div className="space-y-3 mb-6 pb-6 border-b border-gray-200">
               <div className="flex justify-between">
                 <span className="text-gray-600">Subtotal</span>
-                <span className="font-semibold">Rs. 0</span>
+                <span className="font-semibold">LKR 0</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Shipping</span>
@@ -34,12 +34,12 @@ const Cart = () => {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Tax</span>
-                <span className="font-semibold">Rs. 0</span>
+                <span className="font-semibold">LKR 0</span>
               </div>
             </div>
             <div className="flex justify-between mb-6">
               <span className="text-xl font-bold text-ksp-black">Total</span>
-              <span className="price-tag">Rs. 0</span>
+              <span className="price-tag">LKR 0</span>
             </div>
             <button className="btn-primary w-full disabled:opacity-50">
               Proceed to Checkout

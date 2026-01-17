@@ -1,14 +1,33 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { Menu, X, ShoppingCart, Search, User, ChevronDown } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Menu, X, ShoppingCart, Search, User, ChevronDown, LogOut } from 'lucide-react';
+import { authService } from '../services/apiService';
 
 const Navigation = () => {
+  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [mobileDropdown, setMobileDropdown] = useState(null);
+  const [user, setUser] = useState(null);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const dropdownRef = useRef(null);
+  const userMenuRef = useRef(null);
 
   const toggleMenu = () => setIsOpen(!isOpen);
+
+  // Check for logged in user
+  useEffect(() => {
+    const currentUser = authService.getCurrentUser();
+    setUser(currentUser);
+  }, []);
+
+  // Handle logout
+  const handleLogout = () => {
+    authService.logout();
+    setUser(null);
+    setShowUserMenu(false);
+    navigate('/login');
+  };
 
   // Categories for dropdowns
   const categories = [
@@ -24,6 +43,9 @@ const Navigation = () => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setActiveDropdown(null);
+      }
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
+        setShowUserMenu(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -177,12 +199,70 @@ const Navigation = () => {
             </Link>
 
             {/* Account Icon */}
-            <Link
-              to="/login"
-              className="hidden sm:block p-2 text-gray-700 hover:text-ksp-red transition-colors duration-300 hover:bg-gray-100 rounded-full"
-            >
-              <User size={22} />
-            </Link>
+            {user ? (
+              <div className="relative hidden sm:block" ref={userMenuRef}>
+                <button
+                  onClick={() => setShowUserMenu(!showUserMenu)}
+                  className="flex items-center gap-2 p-2 text-gray-700 hover:text-ksp-red transition-colors duration-300 hover:bg-gray-100 rounded-full"
+                >
+                  <div className="w-8 h-8 bg-ksp-red rounded-full flex items-center justify-center">
+                    <span className="text-white text-sm font-bold">
+                      {user.firstName?.charAt(0)}{user.lastName?.charAt(0)}
+                    </span>
+                  </div>
+                </button>
+                
+                {/* User Dropdown Menu */}
+                {showUserMenu && (
+                  <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50">
+                    <div className="p-4 border-b border-gray-100">
+                      <p className="font-semibold text-gray-900">{user.firstName} {user.lastName}</p>
+                      <p className="text-sm text-gray-500">{user.email}</p>
+                    </div>
+                    <div className="py-2">
+                      <Link
+                        to="/profile"
+                        onClick={() => setShowUserMenu(false)}
+                        className="flex items-center gap-3 px-4 py-2.5 text-gray-600 hover:bg-gray-50 transition-colors"
+                      >
+                        <User size={18} /> My Profile
+                      </Link>
+                      <Link
+                        to="/orders"
+                        onClick={() => setShowUserMenu(false)}
+                        className="flex items-center gap-3 px-4 py-2.5 text-gray-600 hover:bg-gray-50 transition-colors"
+                      >
+                        <ShoppingCart size={18} /> My Orders
+                      </Link>
+                      {user.role === 'admin' && (
+                        <Link
+                          to="/admin"
+                          onClick={() => setShowUserMenu(false)}
+                          className="flex items-center gap-3 px-4 py-2.5 text-ksp-red hover:bg-gray-50 transition-colors font-semibold"
+                        >
+                          <User size={18} /> Admin Dashboard
+                        </Link>
+                      )}
+                    </div>
+                    <div className="border-t border-gray-100 py-2">
+                      <button
+                        onClick={handleLogout}
+                        className="flex items-center gap-3 px-4 py-2.5 text-red-600 hover:bg-red-50 transition-colors w-full"
+                      >
+                        <LogOut size={18} /> Logout
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Link
+                to="/login"
+                className="hidden sm:block p-2 text-gray-700 hover:text-ksp-red transition-colors duration-300 hover:bg-gray-100 rounded-full"
+              >
+                <User size={22} />
+              </Link>
+            )}
 
             {/* Mobile Menu Button */}
             <button
@@ -297,13 +377,44 @@ const Navigation = () => {
                 About Us
               </Link>
               <div className="border-t border-gray-300 mt-3 pt-3">
-                <Link
-                  to="/login"
-                  className="block px-3 py-3 rounded-lg bg-ksp-red text-white hover:bg-red-700 transition-colors duration-300 font-semibold text-center"
-                  onClick={toggleMenu}
-                >
-                  Sign In
-                </Link>
+                {user ? (
+                  <>
+                    <div className="px-3 py-2 mb-2">
+                      <p className="font-semibold text-gray-900">{user.firstName} {user.lastName}</p>
+                      <p className="text-sm text-gray-500">{user.email}</p>
+                    </div>
+                    <Link
+                      to="/profile"
+                      className="block px-3 py-3 rounded-lg text-gray-700 hover:bg-gray-200 hover:text-ksp-red transition-colors duration-300 font-semibold"
+                      onClick={toggleMenu}
+                    >
+                      My Profile
+                    </Link>
+                    {user.role === 'admin' && (
+                      <Link
+                        to="/admin"
+                        className="block px-3 py-3 rounded-lg text-ksp-red hover:bg-gray-200 transition-colors duration-300 font-semibold"
+                        onClick={toggleMenu}
+                      >
+                        Admin Dashboard
+                      </Link>
+                    )}
+                    <button
+                      onClick={() => { handleLogout(); toggleMenu(); }}
+                      className="w-full mt-2 px-3 py-3 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 transition-colors duration-300 font-semibold text-center"
+                    >
+                      Logout
+                    </button>
+                  </>
+                ) : (
+                  <Link
+                    to="/login"
+                    className="block px-3 py-3 rounded-lg bg-ksp-red text-white hover:bg-red-700 transition-colors duration-300 font-semibold text-center"
+                    onClick={toggleMenu}
+                  >
+                    Sign In
+                  </Link>
+                )}
               </div>
             </div>
           </div>

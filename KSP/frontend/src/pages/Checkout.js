@@ -160,6 +160,21 @@ const Checkout = () => {
                   <input
                     type="radio"
                     name="paymentMethod"
+                    value="bank_slip"
+                    checked={formData.paymentMethod === 'bank_slip'}
+                    onChange={handleChange}
+                    className="mr-3"
+                  />
+                  <div>
+                    <p className="font-semibold text-ksp-black">Bank Transfer</p>
+                    <p className="text-sm text-gray-600">Upload bank slip for verification</p>
+                  </div>
+                </label>
+
+                <label className="flex items-center p-4 border border-gray-200 rounded cursor-pointer hover:bg-ksp-gray transition">
+                  <input
+                    type="radio"
+                    name="paymentMethod"
                     value="payhere"
                     checked={formData.paymentMethod === 'payhere'}
                     onChange={handleChange}
@@ -200,7 +215,7 @@ const Checkout = () => {
             <div className="space-y-3 mb-6 pb-6 border-b border-gray-200">
               <div className="flex justify-between">
                 <span className="text-gray-600">Subtotal</span>
-                <span className="font-semibold">Rs. 0</span>
+                <span className="font-semibold">LKR 0</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Shipping</span>
@@ -208,13 +223,13 @@ const Checkout = () => {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Tax</span>
-                <span className="font-semibold">Rs. 0</span>
+                <span className="font-semibold">LKR 0</span>
               </div>
             </div>
 
             <div className="flex justify-between mb-6">
               <span className="text-xl font-bold text-ksp-black">Total</span>
-              <span className="price-tag">Rs. 0</span>
+              <span className="price-tag">LKR 0</span>
             </div>
 
             <button className="btn-primary w-full disabled:opacity-50">

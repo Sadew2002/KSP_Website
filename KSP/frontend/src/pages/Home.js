@@ -234,7 +234,7 @@ const Home = () => {
                   {/* Price & Action */}
                   <div className="flex items-center justify-between">
                     <span className="text-xl font-black text-ksp-red">
-                      Rs. {parseFloat(product.price).toLocaleString()}
+                      LKR {parseFloat(product.price).toLocaleString()}
                     </span>
                     <div className="w-9 h-9 flex items-center justify-center bg-gray-100 group-hover:bg-ksp-red rounded-full transition-all duration-300">
                       <ArrowRight size={16} className="text-gray-500 group-hover:text-white transition-colors duration-300" />
@@ -349,7 +349,7 @@ const Home = () => {
                   {/* Price & Action */}
                   <div className="flex items-center justify-between">
                     <span className="text-xl font-black text-green-600">
-                      Rs. {parseFloat(product.price).toLocaleString()}
+                      LKR {parseFloat(product.price).toLocaleString()}
                     </span>
                     <div className="w-9 h-9 flex items-center justify-center bg-gray-100 group-hover:bg-green-500 rounded-full transition-all duration-300">
                       <ArrowRight size={16} className="text-gray-500 group-hover:text-white transition-colors duration-300" />

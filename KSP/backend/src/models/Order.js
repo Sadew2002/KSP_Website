@@ -27,13 +27,17 @@ const orderSchema = new mongoose.Schema(
     },
     paymentMethod: {
       type: String,
-      enum: ['cash_on_delivery', 'payhere', 'stripe'],
+      enum: ['cash_on_delivery', 'payhere', 'stripe', 'bank_slip'],
       required: true,
     },
     paymentStatus: {
       type: String,
-      enum: ['unpaid', 'paid', 'failed', 'refunded'],
+      enum: ['unpaid', 'pending_verification', 'paid', 'failed', 'refunded'],
       default: 'unpaid',
+    },
+    bankSlipUrl: {
+      type: String,
+      default: null,
     },
     shippingAddress: {
       type: String,

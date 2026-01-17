@@ -92,7 +92,7 @@ const Products = () => {
   };
 
   const formatPrice = (price) => {
-    return `Rs. ${parseFloat(price).toLocaleString()}`;
+    return `LKR ${parseFloat(price).toLocaleString()}`;
   };
 
   const getStockBadge = (quantity) => {

@@ -15,6 +15,9 @@ export const authService = {
     localStorage.setItem('authToken', token);
     localStorage.setItem('user', JSON.stringify(user));
   },
+  getProfile: () => api.get('/auth/profile'),
+  updateProfile: (profileData) => api.put('/auth/profile', profileData),
+  changePassword: (currentPassword, newPassword) => api.put('/auth/change-password', { currentPassword, newPassword }),
 };
 
 export const productService = {
@@ -35,6 +38,7 @@ export const orderService = {
   getOrders: () => api.get('/orders'),
   getOrderById: (orderId) => api.get(`/orders/${orderId}`),
   createOrder: (orderData) => api.post('/orders', orderData),
+  createDirectOrder: (orderData) => api.post('/orders/direct', orderData),
   cancelOrder: (orderId) => api.put(`/orders/${orderId}/cancel`),
 };
 
@@ -54,6 +58,8 @@ export const adminService = {
   getAllOrders: (params) => api.get('/admin/orders', { params }),
   updateOrderStatus: (orderId, status) => api.put(`/admin/orders/${orderId}/status`, { status }),
   updateTracking: (orderId, trackingData) => api.put(`/admin/orders/${orderId}/tracking`, trackingData),
+  verifyPayment: (orderId, action, reason) => api.put(`/admin/orders/${orderId}/verify-payment`, { action, reason }),
+  getPendingVerificationOrders: () => api.get('/admin/orders/pending-verification'),
   
   // Users
   getAllUsers: (params) => api.get('/admin/users', { params }),
