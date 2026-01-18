@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider, Outlet, useLocation } from 'react-router-dom';
 import Navigation from './components/Navigation';
 import Footer from './components/Footer';
 import Home from './pages/Home';
@@ -12,13 +12,14 @@ import Profile from './pages/Profile';
 import OrderDetail from './pages/OrderDetail';
 import Login from './pages/Auth/Login';
 import Register from './pages/Auth/Register';
+import ForgotPassword from './pages/Auth/ForgotPassword';
 import Orders from './pages/Orders';
 import About from './pages/About';
 import AdminDashboard from './pages/Admin/Dashboard';
 import './styles/globals.css';
 
 // Layout wrapper component
-const Layout = ({ children }) => {
+const Layout = () => {
   const location = useLocation();
   const isAdminRoute = location.pathname.startsWith('/admin');
   const isHomePage = location.pathname === '/';
@@ -27,42 +28,57 @@ const Layout = ({ children }) => {
     <div className="flex flex-col min-h-screen">
       {!isAdminRoute && <Navigation />}
       <main className={isAdminRoute ? '' : 'flex-grow'}>
-        {children}
+        <Outlet />
       </main>
       {!isAdminRoute && <Footer showNewsletter={isHomePage} />}
     </div>
   );
 };
 
+// Create router with future flags to suppress warnings
+const router = createBrowserRouter(
+  [
+    {
+      path: '/',
+      element: <Layout />,
+      children: [
+        { index: true, element: <Home /> },
+        { path: 'products', element: <Products /> },
+        { path: 'products/:id', element: <ProductDetail /> },
+        { path: 'cart', element: <Cart /> },
+        { path: 'checkout', element: <Checkout /> },
+        { path: 'place-order', element: <PlaceOrder /> },
+        { path: 'profile', element: <Profile /> },
+        { path: 'orders', element: <Orders /> },
+        { path: 'orders/:orderId', element: <OrderDetail /> },
+        { path: 'about', element: <About /> },
+        { path: 'login', element: <Login /> },
+        { path: 'register', element: <Register /> },
+        { path: 'forgot-password', element: <ForgotPassword /> },
+        { path: 'admin/*', element: <AdminDashboard /> },
+        { path: '*', element: <div className="text-center py-20">Page not found</div> },
+      ],
+    },
+  ],
+  {
+    future: {
+      v7_fetcherPersist: true,
+      v7_normalizeFormMethod: true,
+      v7_partialHydration: true,
+      v7_relativeSplatPath: true,
+      v7_skipActionErrorRevalidation: true,
+    },
+  }
+);
+
 function App() {
   return (
-    <Router>
-      <Layout>
-        <Routes>
-          {/* Customer Routes */}
-          <Route path="/" element={<Home />} />
-          <Route path="/products" element={<Products />} />
-          <Route path="/products/:id" element={<ProductDetail />} />
-          <Route path="/cart" element={<Cart />} />
-          <Route path="/checkout" element={<Checkout />} />
-          <Route path="/place-order" element={<PlaceOrder />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/orders" element={<Orders />} />
-          <Route path="/orders/:orderId" element={<OrderDetail />} />
-          <Route path="/about" element={<About />} />
-          
-          {/* Auth Routes */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          
-          {/* Admin Routes */}
-          <Route path="/admin/*" element={<AdminDashboard />} />
-          
-          {/* 404 Route */}
-          <Route path="*" element={<div className="text-center py-20">Page not found</div>} />
-        </Routes>
-      </Layout>
-    </Router>
+    <RouterProvider 
+      router={router} 
+      future={{
+        v7_startTransition: true,
+      }}
+    />
   );
 }
 

@@ -219,3 +219,70 @@ a {
 .alert-info {
   @apply bg-blue-50 border border-blue-500 text-blue-600 p-4 rounded-lg mb-4;
 }
+
+/* Shake Animation */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
+  20%, 40%, 60%, 80% { transform: translateX(4px); }
+}
+
+.animate-shake {
+  animation: shake 0.5s ease-in-out;
+}
+
+/* Slide In Animation */
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-in {
+  animation: slideInUp 0.3s ease-out forwards;
+}
+
+/* Bounce Animation */
+@keyframes bounce-slow {
+  0%, 100% {
+    transform: translateY(-5%);
+    animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
+  }
+  50% {
+    transform: translateY(0);
+    animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
+  }
+}
+
+.animate-bounce-slow {
+  animation: bounce-slow 2s infinite;
+}
+
+/* Glow Effect */
+@keyframes glow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(239, 1, 79, 0.5), 0 0 10px rgba(239, 1, 79, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(239, 1, 79, 0.8), 0 0 30px rgba(239, 1, 79, 0.5);
+  }
+}
+
+.animate-glow {
+  animation: glow 2s ease-in-out infinite;
+}
+
+/* Focus ring for accessibility */
+.focus-ring {
+  @apply focus:outline-none focus:ring-4 focus:ring-ksp-red/20 focus:border-ksp-red;
+}
+
+/* Gradient text */
+.gradient-text {
+  @apply bg-gradient-to-r from-ksp-red to-red-600 bg-clip-text text-transparent;
+}

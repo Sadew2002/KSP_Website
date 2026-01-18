@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Package, 
   Users, 
@@ -12,6 +12,7 @@ import {
   Trash2,
   Eye,
   ChevronRight,
+  ChevronDown,
   Box,
   ShoppingCart,
   BarChart3,
@@ -35,7 +36,12 @@ import {
   CheckCircle,
   XCircle,
   FileText,
-  Image
+  Image,
+  Shield,
+  KeyRound,
+  ExternalLink,
+  Home,
+  Clock
 } from 'lucide-react';
 import api from '../../services/api';
 import { authService, adminService } from '../../services/apiService';
@@ -75,6 +81,14 @@ const AdminDashboard = () => {
   const [showPaymentDetail, setShowPaymentDetail] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   
+  // Clients state
+  const [clients, setClients] = useState([]);
+  const [clientsLoading, setClientsLoading] = useState(false);
+  const [clientSearchTerm, setClientSearchTerm] = useState('');
+  const [clientStatusFilter, setClientStatusFilter] = useState('all');
+  const [selectedClient, setSelectedClient] = useState(null);
+  const [showClientDetail, setShowClientDetail] = useState(false);
+  
   // Admin Profile state
   const [adminProfile, setAdminProfile] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
@@ -94,6 +108,8 @@ const AdminDashboard = () => {
     confirmPassword: ''
   });
   const [profileTab, setProfileTab] = useState('info');
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const profileDropdownRef = useRef(null);
   
   // About Us form state
   const [aboutForm, setAboutForm] = useState({
@@ -158,6 +174,24 @@ const AdminDashboard = () => {
       fetchAdminProfile();
     }
   }, [activeTab]);
+
+  // Also fetch profile on component mount for header dropdown
+  useEffect(() => {
+    if (!adminProfile) {
+      fetchAdminProfile();
+    }
+  }, []);
+
+  // Close profile dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target)) {
+        setProfileDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Fetch all orders for admin
   const fetchOrders = async () => {
@@ -244,6 +278,61 @@ const AdminDashboard = () => {
       }
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to verify payment');
+      setTimeout(() => setError(''), 3000);
+    }
+  };
+
+  // Fetch all clients (customers)
+  const fetchClients = async () => {
+    setClientsLoading(true);
+    try {
+      const params = { role: 'customer' };
+      if (clientStatusFilter !== 'all') {
+        params.status = clientStatusFilter;
+      }
+      if (clientSearchTerm) {
+        params.search = clientSearchTerm;
+      }
+      const response = await adminService.getAllUsers(params);
+      if (response.data.success) {
+        setClients(response.data.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch clients:', err);
+      setError('Failed to load clients');
+    } finally {
+      setClientsLoading(false);
+    }
+  };
+
+  // Load clients when clients tab is active
+  useEffect(() => {
+    if (activeTab === 'clients') {
+      fetchClients();
+    }
+  }, [activeTab, clientStatusFilter]);
+
+  // Debounced search for clients
+  useEffect(() => {
+    if (activeTab === 'clients') {
+      const timer = setTimeout(() => {
+        fetchClients();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [clientSearchTerm]);
+
+  // Toggle client status (active/inactive)
+  const handleToggleClientStatus = async (clientId, currentStatus) => {
+    try {
+      const response = await adminService.updateUserStatus(clientId, !currentStatus);
+      if (response.data.success) {
+        setSuccess(`Client ${!currentStatus ? 'activated' : 'deactivated'} successfully`);
+        fetchClients();
+        setTimeout(() => setSuccess(''), 3000);
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to update client status');
       setTimeout(() => setError(''), 3000);
     }
   };
@@ -783,13 +872,6 @@ const AdminDashboard = () => {
     { label: 'Out of Stock', value: products.filter(p => p.quantity === 0).length, change: '0', icon: X, color: 'bg-red-500' }
   ];
 
-  const clients = [
-    { id: 1, name: 'Kasun Perera', email: 'kasun@email.com', phone: '+94 77 123 4567', orders: 12, spent: 'LKR 458,000', status: 'Active' },
-    { id: 2, name: 'Nimali Silva', email: 'nimali@email.com', phone: '+94 71 234 5678', orders: 8, spent: 'LKR 289,000', status: 'Active' },
-    { id: 3, name: 'Ruwan Fernando', email: 'ruwan@email.com', phone: '+94 76 345 6789', orders: 5, spent: 'LKR 156,000', status: 'Inactive' },
-    { id: 4, name: 'Dilini Jayawardena', email: 'dilini@email.com', phone: '+94 78 456 7890', orders: 15, spent: 'LKR 612,000', status: 'Active' }
-  ];
-
   const recentOrders = [
     { id: 'ORD-2025-001', customer: 'Kasun Perera', product: 'iPhone 15 Pro', amount: 'LKR 389,000', status: 'Delivered', date: '2025-12-27' },
     { id: 'ORD-2025-002', customer: 'Nimali Silva', product: 'Samsung S24', amount: 'LKR 329,000', status: 'Shipped', date: '2025-12-26' },
@@ -909,8 +991,122 @@ const AdminDashboard = () => {
                 <Bell size={18} />
                 <span className="absolute top-1 right-1 w-2 h-2 bg-ksp-red rounded-full"></span>
               </button>
-              <div className="w-9 h-9 bg-gradient-to-br from-ksp-red to-red-600 rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-lg">
-                A
+              
+              {/* Profile Dropdown */}
+              <div className="relative" ref={profileDropdownRef}>
+                <button 
+                  onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+                  className="flex items-center gap-2 p-1.5 hover:bg-gray-100 rounded-xl transition-colors"
+                >
+                  <div className="w-9 h-9 bg-gradient-to-br from-ksp-red to-red-600 rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-lg">
+                    {adminProfile?.firstName?.charAt(0) || 'A'}{adminProfile?.lastName?.charAt(0) || ''}
+                  </div>
+                  <div className="hidden lg:block text-left">
+                    <p className="text-sm font-semibold text-gray-900">
+                      {adminProfile?.firstName || 'Admin'} {adminProfile?.lastName || ''}
+                    </p>
+                    <p className="text-xs text-gray-500">Administrator</p>
+                  </div>
+                  <ChevronDown size={16} className={`text-gray-400 transition-transform duration-200 ${profileDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {/* Dropdown Menu */}
+                {profileDropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50 animate-fadeIn overflow-hidden">
+                    {/* User Info Header */}
+                    <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-gradient-to-br from-ksp-red to-red-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg">
+                          {adminProfile?.firstName?.charAt(0) || 'A'}{adminProfile?.lastName?.charAt(0) || ''}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-gray-900 truncate">
+                            {adminProfile?.firstName || 'Admin'} {adminProfile?.lastName || 'User'}
+                          </p>
+                          <p className="text-xs text-gray-500 truncate">{adminProfile?.email || 'admin@ksp.com'}</p>
+                          <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 bg-ksp-red/10 text-ksp-red text-xs font-semibold rounded-full">
+                            <Shield size={10} /> Admin
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Menu Items */}
+                    <div className="py-2">
+                      <button
+                        onClick={() => { setActiveTab('profile'); setProfileDropdownOpen(false); }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-gray-50 transition-colors"
+                      >
+                        <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                          <User size={16} className="text-blue-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">My Profile</p>
+                          <p className="text-xs text-gray-400">View and edit your profile</p>
+                        </div>
+                      </button>
+
+                      <button
+                        onClick={() => { setActiveTab('profile'); setProfileTab('security'); setProfileDropdownOpen(false); }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-gray-50 transition-colors"
+                      >
+                        <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                          <KeyRound size={16} className="text-green-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">Security</p>
+                          <p className="text-xs text-gray-400">Change password</p>
+                        </div>
+                      </button>
+
+                      <button
+                        onClick={() => { setActiveTab('settings'); setProfileDropdownOpen(false); }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-gray-50 transition-colors"
+                      >
+                        <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                          <Settings size={16} className="text-purple-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">Settings</p>
+                          <p className="text-xs text-gray-400">Store preferences</p>
+                        </div>
+                      </button>
+                    </div>
+
+                    {/* View Store */}
+                    <div className="border-t border-gray-100 pt-2 mt-1">
+                      <button
+                        onClick={() => { navigate('/'); setProfileDropdownOpen(false); }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-orange-50 transition-colors group"
+                      >
+                        <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center group-hover:bg-orange-200 transition-colors">
+                          <Home size={16} className="text-orange-600" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-orange-600">View Store</p>
+                          <p className="text-xs text-orange-400">Go to main website</p>
+                        </div>
+                        <ExternalLink size={14} className="text-orange-400" />
+                      </button>
+                    </div>
+
+                    {/* Logout */}
+                    <div className="border-t border-gray-100 pt-2 mt-1">
+                      <button
+                        onClick={() => { handleLogout(); setProfileDropdownOpen(false); }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-red-50 transition-colors group"
+                      >
+                        <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center group-hover:bg-red-200 transition-colors">
+                          <LogOut size={16} className="text-red-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-red-600">Sign Out</p>
+                          <p className="text-xs text-red-400">Log out of your account</p>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -1396,53 +1592,334 @@ const AdminDashboard = () => {
           {/* Clients Tab */}
           {activeTab === 'clients' && (
             <>
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-4">
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
+                <div className="flex items-center gap-4 flex-wrap">
                   <div className="relative">
                     <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <input type="text" placeholder="Search clients..." className="pl-10 pr-4 py-3 bg-white rounded-xl border border-gray-200 focus:ring-2 focus:ring-ksp-red/20 w-80" />
+                    <input 
+                      type="text" 
+                      placeholder="Search clients by name, email..." 
+                      value={clientSearchTerm}
+                      onChange={(e) => setClientSearchTerm(e.target.value)}
+                      className="pl-10 pr-4 py-3 bg-white rounded-xl border border-gray-200 focus:ring-2 focus:ring-ksp-red/20 w-80" 
+                    />
+                  </div>
+                  <select
+                    value={clientStatusFilter}
+                    onChange={(e) => setClientStatusFilter(e.target.value)}
+                    className="px-4 py-3 bg-white rounded-xl border border-gray-200 focus:ring-2 focus:ring-ksp-red/20 text-sm font-medium"
+                  >
+                    <option value="all">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                  <button 
+                    onClick={fetchClients}
+                    className="p-3 bg-white rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors"
+                    title="Refresh"
+                  >
+                    <RefreshCw size={18} className={clientsLoading ? 'animate-spin text-ksp-red' : 'text-gray-500'} />
+                  </button>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="text-sm text-gray-500">
+                    <span className="font-semibold text-gray-900">{clients.length}</span> customers found
                   </div>
                 </div>
-                <button 
-                  onClick={() => setShowAddClient(true)}
-                  className="flex items-center gap-2 px-6 py-3 bg-ksp-red text-white rounded-xl font-semibold hover:bg-red-600 transition-colors"
-                >
-                  <Plus size={20} /> Add Client
-                </button>
               </div>
 
+              {/* Clients Stats */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                      <Users size={24} className="text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-gray-900">{clients.length}</p>
+                      <p className="text-sm text-gray-500">Total Customers</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                      <CheckCircle size={24} className="text-green-600" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-gray-900">{clients.filter(c => c.isActive).length}</p>
+                      <p className="text-sm text-gray-500">Active</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
+                      <XCircle size={24} className="text-red-600" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-gray-900">{clients.filter(c => !c.isActive).length}</p>
+                      <p className="text-sm text-gray-500">Inactive</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
+                      <Clock size={24} className="text-purple-600" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {clients.filter(c => {
+                          const date = new Date(c.createdAt);
+                          const now = new Date();
+                          const diffTime = Math.abs(now - date);
+                          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                          return diffDays <= 7;
+                        }).length}
+                      </p>
+                      <p className="text-sm text-gray-500">New This Week</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Loading State */}
+              {clientsLoading && (
+                <div className="flex items-center justify-center py-20">
+                  <div className="text-center">
+                    <RefreshCw size={40} className="animate-spin text-ksp-red mx-auto mb-4" />
+                    <p className="text-gray-500">Loading customers...</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Empty State */}
+              {!clientsLoading && clients.length === 0 && (
+                <div className="bg-white rounded-2xl p-12 shadow-sm border border-gray-100 text-center">
+                  <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Users size={40} className="text-gray-400" />
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">No Customers Found</h3>
+                  <p className="text-gray-500 mb-4">
+                    {clientSearchTerm ? 'Try adjusting your search terms' : 'Customers will appear here when they register'}
+                  </p>
+                </div>
+              )}
+
               {/* Clients Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {clients.map((client) => (
-                  <div key={client.id} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-lg transition-all duration-300">
-                    <div className="flex items-center gap-4 mb-4">
-                      <div className="w-14 h-14 bg-gradient-to-br from-ksp-red to-red-600 rounded-full flex items-center justify-center text-white font-bold text-xl">
-                        {client.name.charAt(0)}
+              {!clientsLoading && clients.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {clients.map((client) => (
+                    <div key={client._id} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-lg transition-all duration-300 group">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center gap-4">
+                          <div className="w-14 h-14 bg-gradient-to-br from-ksp-red to-red-600 rounded-full flex items-center justify-center text-white font-bold text-xl shadow-lg">
+                            {client.firstName?.charAt(0) || client.email?.charAt(0)?.toUpperCase() || '?'}
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-gray-900">
+                              {client.firstName && client.lastName 
+                                ? `${client.firstName} ${client.lastName}` 
+                                : client.firstName || 'No Name'}
+                            </h3>
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
+                              client.isActive 
+                                ? 'bg-green-100 text-green-700' 
+                                : 'bg-red-100 text-red-700'
+                            }`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${client.isActive ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                              {client.isActive ? 'Active' : 'Inactive'}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="font-bold text-gray-900">{client.name}</h3>
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getStatusColor(client.status)}`}>
-                          {client.status}
-                        </span>
+                      
+                      <div className="space-y-2 text-sm text-gray-600 mb-4">
+                        <p className="flex items-center gap-2">
+                          <Mail size={14} className="text-gray-400" />
+                          <span className="truncate">{client.email}</span>
+                        </p>
+                        <p className="flex items-center gap-2">
+                          <Phone size={14} className="text-gray-400" />
+                          <span>{client.phone || 'Not provided'}</span>
+                        </p>
+                      </div>
+                      
+                      <div className="flex items-center justify-between pt-4 border-t border-gray-100 mb-4">
+                        <div>
+                          <p className="text-xs text-gray-500">Member Since</p>
+                          <p className="font-semibold text-gray-900 text-sm">
+                            {new Date(client.createdAt).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric'
+                            })}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-gray-500">Last Login</p>
+                          <p className="font-semibold text-gray-900 text-sm">
+                            {client.lastLogin 
+                              ? new Date(client.lastLogin).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric'
+                                })
+                              : 'Never'
+                            }
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => {
+                            setSelectedClient(client);
+                            setShowClientDetail(true);
+                          }}
+                          className="flex-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors flex items-center justify-center gap-1"
+                        >
+                          <Eye size={14} /> View
+                        </button>
+                        <button
+                          onClick={() => handleToggleClientStatus(client._id, client.isActive)}
+                          className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-1 ${
+                            client.isActive 
+                              ? 'bg-red-100 text-red-700 hover:bg-red-200' 
+                              : 'bg-green-100 text-green-700 hover:bg-green-200'
+                          }`}
+                        >
+                          {client.isActive ? <><XCircle size={14} /> Deactivate</> : <><CheckCircle size={14} /> Activate</>}
+                        </button>
                       </div>
                     </div>
-                    <div className="space-y-2 text-sm text-gray-600 mb-4">
-                      <p>📧 {client.email}</p>
-                      <p>📞 {client.phone}</p>
-                    </div>
-                    <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                      <div>
-                        <p className="text-xs text-gray-500">Orders</p>
-                        <p className="font-bold text-gray-900">{client.orders}</p>
+                  ))}
+                </div>
+              )}
+
+              {/* Client Detail Modal */}
+              {showClientDetail && selectedClient && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                  <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+                    <div className="bg-gradient-to-r from-ksp-red to-red-600 p-6 text-white">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-xl font-bold">Customer Details</h3>
+                        <button
+                          onClick={() => {
+                            setShowClientDetail(false);
+                            setSelectedClient(null);
+                          }}
+                          className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                        >
+                          <X size={20} />
+                        </button>
                       </div>
-                      <div className="text-right">
-                        <p className="text-xs text-gray-500">Total Spent</p>
-                        <p className="font-bold text-ksp-red">{client.spent}</p>
+                    </div>
+                    
+                    <div className="p-6">
+                      <div className="flex items-center gap-4 mb-6">
+                        <div className="w-20 h-20 bg-gradient-to-br from-ksp-red to-red-600 rounded-full flex items-center justify-center text-white font-bold text-3xl shadow-lg">
+                          {selectedClient.firstName?.charAt(0) || selectedClient.email?.charAt(0)?.toUpperCase() || '?'}
+                        </div>
+                        <div>
+                          <h4 className="text-xl font-bold text-gray-900">
+                            {selectedClient.firstName && selectedClient.lastName 
+                              ? `${selectedClient.firstName} ${selectedClient.lastName}` 
+                              : selectedClient.firstName || 'No Name'}
+                          </h4>
+                          <p className="text-gray-500">{selectedClient.email}</p>
+                          <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold mt-2 ${
+                            selectedClient.isActive 
+                              ? 'bg-green-100 text-green-700' 
+                              : 'bg-red-100 text-red-700'
+                          }`}>
+                            {selectedClient.isActive ? 'Active Account' : 'Inactive Account'}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-4">
+                        <div className="bg-gray-50 rounded-xl p-4">
+                          <h5 className="text-sm font-semibold text-gray-500 mb-3">Contact Information</h5>
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-3">
+                              <Mail size={16} className="text-gray-400" />
+                              <span className="text-gray-900">{selectedClient.email}</span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <Phone size={16} className="text-gray-400" />
+                              <span className="text-gray-900">{selectedClient.phone || 'Not provided'}</span>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="bg-gray-50 rounded-xl p-4">
+                          <h5 className="text-sm font-semibold text-gray-500 mb-3">Account Information</h5>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <p className="text-xs text-gray-500">Member Since</p>
+                              <p className="font-semibold text-gray-900">
+                                {new Date(selectedClient.createdAt).toLocaleDateString('en-US', {
+                                  month: 'long',
+                                  day: 'numeric',
+                                  year: 'numeric'
+                                })}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-500">Last Login</p>
+                              <p className="font-semibold text-gray-900">
+                                {selectedClient.lastLogin 
+                                  ? new Date(selectedClient.lastLogin).toLocaleDateString('en-US', {
+                                      month: 'long',
+                                      day: 'numeric',
+                                      year: 'numeric'
+                                    })
+                                  : 'Never logged in'
+                                }
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-500">Account Role</p>
+                              <p className="font-semibold text-gray-900 capitalize">{selectedClient.role}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-500">Account ID</p>
+                              <p className="font-mono text-xs text-gray-600">{selectedClient._id}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-3 mt-6">
+                        <button
+                          onClick={() => handleToggleClientStatus(selectedClient._id, selectedClient.isActive)}
+                          className={`flex-1 px-4 py-3 rounded-xl font-semibold transition-colors flex items-center justify-center gap-2 ${
+                            selectedClient.isActive 
+                              ? 'bg-red-100 text-red-700 hover:bg-red-200' 
+                              : 'bg-green-100 text-green-700 hover:bg-green-200'
+                          }`}
+                        >
+                          {selectedClient.isActive 
+                            ? <><XCircle size={18} /> Deactivate Account</> 
+                            : <><CheckCircle size={18} /> Activate Account</>
+                          }
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowClientDetail(false);
+                            setSelectedClient(null);
+                          }}
+                          className="px-6 py-3 bg-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-300 transition-colors"
+                        >
+                          Close
+                        </button>
                       </div>
                     </div>
                   </div>
-                ))}
-              </div>
+                </div>
+              )}
             </>
           )}
 
