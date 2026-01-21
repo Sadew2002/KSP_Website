@@ -2,29 +2,32 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Menu, X, ShoppingCart, Search, User, ChevronDown, LogOut } from 'lucide-react';
 import { authService } from '../services/apiService';
+import { useAuthStore } from '../context/store';
 
 const Navigation = () => {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [mobileDropdown, setMobileDropdown] = useState(null);
-  const [user, setUser] = useState(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const dropdownRef = useRef(null);
   const userMenuRef = useRef(null);
+  const { user, logout: storeLogout, setUser } = useAuthStore();
 
   const toggleMenu = () => setIsOpen(!isOpen);
 
-  // Check for logged in user
+  // Sync store user with any existing localStorage user on first load
   useEffect(() => {
-    const currentUser = authService.getCurrentUser();
-    setUser(currentUser);
-  }, []);
+    if (!user) {
+      const currentUser = authService.getCurrentUser();
+      if (currentUser) setUser(currentUser, localStorage.getItem('authToken'));
+    }
+  }, [user, setUser]);
 
   // Handle logout
   const handleLogout = () => {
     authService.logout();
-    setUser(null);
+    storeLogout();
     setShowUserMenu(false);
     navigate('/login');
   };

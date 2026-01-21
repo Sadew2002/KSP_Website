@@ -51,10 +51,12 @@ const userSchema = new mongoose.Schema(
       type: String,
       enum: ['customer', 'admin'],
       default: 'customer',
+      index: true,
     },
     isActive: {
       type: Boolean,
       default: true,
+      index: true,
     },
     lastLogin: {
       type: Date,
@@ -73,6 +75,13 @@ const userSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+// Compound indexes for admin queries
+userSchema.index({ role: 1, isActive: 1 });
+userSchema.index({ role: 1, createdAt: -1 });
+
+// Text index for user search
+userSchema.index({ firstName: 'text', lastName: 'text', email: 'text' });
 
 // Hash password before saving
 userSchema.pre('save', async function (next) {

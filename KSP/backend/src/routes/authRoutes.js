@@ -153,8 +153,83 @@ router.post('/login', async (req, res) => {
  * POST /api/auth/refresh-token
  * Refresh JWT token
  */
-router.post('/refresh-token', (req, res) => {
-  res.json({ message: 'Refresh token endpoint' });
+router.post('/refresh-token', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+
+    const token = authHeader.split(' ')[1];
+    
+    // Verify the token (even if expired, we can still decode it)
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret_key');
+    } catch (error) {
+      // If token is expired, we can still decode it to get user info
+      if (error.name === 'TokenExpiredError') {
+        decoded = jwt.decode(token);
+      } else {
+        return res.status(403).json({
+          success: false,
+          message: 'Invalid token'
+        });
+      }
+    }
+
+    if (!decoded || !decoded.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Invalid token payload'
+      });
+    }
+
+    // Verify user still exists
+    const user = await User.findById(decoded.id);
+    if (!user || !user.isActive) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found or inactive'
+      });
+    }
+
+    // Generate new token
+    const newToken = jwt.sign(
+      {
+        id: user._id,
+        email: user.email,
+        role: user.role,
+        firstName: user.firstName,
+        lastName: user.lastName
+      },
+      process.env.JWT_SECRET || 'your_jwt_secret_key',
+      { expiresIn: '24h' }
+    );
+
+    res.json({
+      success: true,
+      message: 'Token refreshed successfully',
+      token: newToken,
+      user: {
+        id: user._id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role
+      }
+    });
+  } catch (error) {
+    console.error('Refresh token error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to refresh token',
+      error: error.message
+    });
+  }
 });
 
 /**
@@ -368,7 +443,22 @@ router.put('/change-password', async (req, res) => {
  * Logout user
  */
 router.post('/logout', (req, res) => {
-  res.json({ message: 'Logout endpoint' });
+  try {
+    // In a stateless JWT setup, logout is typically handled on the client side
+    // by removing the token from storage. Server-side logout would require
+    // a token blacklist/revocation mechanism.
+    res.json({ 
+      success: true,
+      message: 'Logout successful. Please remove the token from client storage.' 
+    });
+  } catch (error) {
+    console.error('Logout error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Logout failed',
+      error: error.message
+    });
+  }
 });
 
 /**
