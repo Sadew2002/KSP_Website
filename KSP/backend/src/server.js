@@ -106,6 +106,7 @@ app.use('/api/products', require('./routes/productRoutes'));
 app.use('/api/cart', authenticateToken, require('./routes/cartRoutes'));
 app.use('/api/orders', authenticateToken, require('./routes/orderRoutes'));
 app.use('/api/payments', authenticateToken, require('./routes/paymentRoutes'));
+app.use('/api/reviews', require('./routes/reviewRoutes'));
 
 // Admin Routes (protected)
 app.use('/api/admin/products', authenticateToken, require('./routes/adminProductRoutes'));

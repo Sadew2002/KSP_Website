@@ -75,3 +75,12 @@ export const adminService = {
   getCustomersReport: (params) => api.get('/admin/reports/customers', { params }),
   getInventoryReport: (params) => api.get('/admin/reports/inventory', { params }),
 };
+
+export const reviewService = {
+  getProductReviews: (productId, params) => api.get(`/reviews/product/${productId}`, { params }),
+  submitReview: (reviewData) => api.post('/reviews', reviewData),
+  updateReview: (reviewId, reviewData) => api.put(`/reviews/${reviewId}`, reviewData),
+  deleteReview: (reviewId) => api.delete(`/reviews/${reviewId}`),
+  getMyReviews: (params) => api.get('/reviews/user/my-reviews', { params }),
+  getLatestReviews: (limit = 5) => api.get('/reviews/latest', { params: { limit } }),
+};
