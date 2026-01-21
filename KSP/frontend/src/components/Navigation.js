@@ -79,10 +79,11 @@ const Navigation = () => {
               className="h-12 w-12 lg:h-16 lg:w-16 object-contain group-hover:scale-110 transition-transform duration-300"
             />
             <div className="hidden sm:flex items-center gap-1">
-              <span className="text-base lg:text-xl font-black text-gray-900">
+              <span className="text-base lg:text-3xl font-black text-gray-900">
                 KANDY SUPER
               </span>
-              <span className="text-base lg:text-xl font-black text-ksp-red">
+              <span></span>
+              <span className="text-base lg:text-3xl font-black text-ksp-red">
                 PHONE
               </span>
             </div>
