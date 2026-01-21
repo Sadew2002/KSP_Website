@@ -5,6 +5,7 @@ import {
   Shield, CheckCircle, AlertCircle, Loader2, Sparkles, Star
 } from 'lucide-react';
 import api from '../../services/api';
+import { useAuthStore } from '../../context/store';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -16,6 +17,7 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [focusedField, setFocusedField] = useState(null);
+  const { setUser } = useAuthStore();
 
   // Check if already logged in
   useEffect(() => {
@@ -66,8 +68,7 @@ const Login = () => {
           localStorage.removeItem('rememberedEmail');
         }
 
-        localStorage.setItem('authToken', response.data.token);
-        localStorage.setItem('user', JSON.stringify(response.data.user));
+        setUser(response.data.user, response.data.token);
         setSuccess('Login successful! Redirecting...');
         
         setTimeout(() => {

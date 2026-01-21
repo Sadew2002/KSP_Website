@@ -66,10 +66,18 @@ app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // Health Check Endpoint
 app.get('/health', (req, res) => {
-  res.json({
-    status: 'API is running',
-    timestamp: new Date().toISOString()
-  });
+  try {
+    res.json({
+      status: 'API is running',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Health check error:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Health check failed'
+    });
+  }
 });
 
 // Serve static files (uploaded images) with CORS headers

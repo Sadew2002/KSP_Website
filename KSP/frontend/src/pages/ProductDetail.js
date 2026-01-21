@@ -86,7 +86,7 @@ const ProductDetail = () => {
             <img
               src={imageSrc}
               alt={product.name}
-              className="w-full rounded"
+              className="w-full h-full rounded block mx-auto object-contain"
               onError={(e) => { e.currentTarget.src = 'https://via.placeholder.com/500x500?text=No+Image'; }}
             />
             {!inStock && (
@@ -147,10 +147,6 @@ const ProductDetail = () => {
                   <span className="badge-green">{product.condition || 'Brand New'}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">SKU:</span>
-                  <span className="font-semibold text-ksp-black">{product.sku}</span>
-                </div>
-                <div className="flex justify-between">
                   <span className="text-gray-600">Category:</span>
                   <span className="font-semibold text-ksp-black">{product.productType || 'Phones'}</span>
                 </div>
@@ -190,7 +186,7 @@ const ProductDetail = () => {
                 onClick={() => navigate('/place-order', { state: { product, quantity } })}
               >
                 <FaShoppingCart className="inline mr-2" />
-                Buy Now
+                Place order
               </button>
               <button className="btn-secondary w-full">
                 Save for Later

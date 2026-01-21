@@ -41,10 +41,12 @@ const paymentSchema = new mongoose.Schema(
     transactionId: {
       type: String,
       default: null,
+      index: true,
     },
     paymentReference: {
       type: String,
       default: null,
+      index: true,
     },
     failureReason: {
       type: String,

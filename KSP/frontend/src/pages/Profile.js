@@ -225,6 +225,7 @@ const Profile = () => {
         });
         setSuccess('Profile updated successfully!');
         setIsEditing(false);
+        setActiveTab('profile');
         setTimeout(() => setSuccess(''), 4000);
       }
     } catch (err) {

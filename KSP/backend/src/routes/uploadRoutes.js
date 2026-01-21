@@ -32,11 +32,16 @@ const storage = multer.diskStorage({
 
 // File filter - only allow images
 const fileFilter = (req, file, cb) => {
-  const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-  if (allowedTypes.includes(file.mimetype)) {
-    cb(null, true);
-  } else {
-    cb(new Error('Invalid file type. Only JPEG, JPG, PNG and WebP are allowed.'), false);
+  try {
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only JPEG, JPG, PNG and WebP are allowed.'), false);
+    }
+  } catch (error) {
+    console.error('File filter error:', error);
+    cb(error, false);
   }
 };
 
@@ -172,11 +177,16 @@ const bankSlipStorage = multer.diskStorage({
 
 // File filter for bank slips - allow images and PDF
 const bankSlipFileFilter = (req, file, cb) => {
-  const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf'];
-  if (allowedTypes.includes(file.mimetype)) {
-    cb(null, true);
-  } else {
-    cb(new Error('Invalid file type. Only JPEG, JPG, PNG, WebP and PDF are allowed.'), false);
+  try {
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf'];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only JPEG, JPG, PNG, WebP and PDF are allowed.'), false);
+    }
+  } catch (error) {
+    console.error('Bank slip file filter error:', error);
+    cb(error, false);
   }
 };
 
