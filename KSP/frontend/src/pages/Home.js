@@ -11,6 +11,7 @@ import {
 import api from '../services/api';
 
 const Home = () => {
+  const [, setIsHovered] = useState(false);
   const [newArrivals, setNewArrivals] = useState([]);
   const [loadingArrivals, setLoadingArrivals] = useState(true);
   const [premiumDeals, setPremiumDeals] = useState([]);
