@@ -2,8 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { 
   FaArrowLeft, FaBox, FaTruck, FaCheckCircle, FaClock, FaTimesCircle,
-  FaMapMarkerAlt, FaCreditCard, FaMoneyBillWave, FaPhone, FaEnvelope,
-  FaUser, FaCalendarAlt, FaReceipt, FaShippingFast
+  FaMapMarkerAlt, FaCreditCard, FaMoneyBillWave, FaCalendarAlt, FaReceipt, FaShippingFast
 } from 'react-icons/fa';
 import { orderService, authService } from '../services/apiService';
 

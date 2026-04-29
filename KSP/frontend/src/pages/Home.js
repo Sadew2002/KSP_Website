@@ -1,14 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Smartphone, 
-  Truck, 
   ShieldCheck, 
   Headphones, 
-  ArrowRight, 
-  ChevronLeft, 
-  ChevronRight,
-  Zap,
+  ArrowRight,
   Gift,
   Tag,
   Star
@@ -17,7 +13,6 @@ import api from '../services/api';
 import { reviewService } from '../services/apiService';
 
 const Home = () => {
-  const [isHovered, setIsHovered] = useState(false);
   const [newArrivals, setNewArrivals] = useState([]);
   const [loadingArrivals, setLoadingArrivals] = useState(true);
   const [premiumDeals, setPremiumDeals] = useState([]);
