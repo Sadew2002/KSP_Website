@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Mail, Lock, Eye, EyeOff, ArrowRight, Smartphone, 
-  Shield, CheckCircle, AlertCircle, Loader2, Sparkles, Star
+  CheckCircle, AlertCircle, Loader2, Sparkles
 } from 'lucide-react';
 import api from '../../services/api';
 
@@ -119,34 +119,19 @@ const Login = () => {
           </Link>
         </div>
 
-        <div className="relative z-10 space-y-10">
+        <div className="relative z-10 space-y-12 flex flex-col justify-between flex-1">
           <div>
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full mb-6">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full mb-8">
               <Sparkles size={16} className="text-yellow-300" />
               <span className="text-white/90 text-sm font-medium">Welcome Back!</span>
             </div>
-            <h1 className="text-5xl font-black text-white mb-6 leading-tight">
+            <h1 className="text-5xl font-black text-white mb-8 leading-tight">
               Sign in to your<br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 to-yellow-100">Account</span>
             </h1>
-            <p className="text-white/80 text-lg max-w-md leading-relaxed">
-              Access your orders, track deliveries, and discover exclusive deals on the latest smartphones.
+            <p className="text-white/70 text-lg max-w-xl leading-relaxed font-light">
+              Manage your orders, track deliveries, and enjoy exclusive member benefits. Shop with confidence on Sri Lanka's trusted mobile phone retailer since 2015.
             </p>
-          </div>
-
-          <div className="space-y-4">
-            {[
-              { icon: Shield, text: 'Secure & encrypted login', color: 'from-green-400 to-emerald-500' },
-              { icon: Smartphone, text: 'Access your orders anytime', color: 'from-blue-400 to-cyan-500' },
-              { icon: Star, text: 'Exclusive member deals', color: 'from-yellow-400 to-orange-500' }
-            ].map((item, idx) => (
-              <div key={idx} className="flex items-center gap-4 text-white/90 group">
-                <div className={`w-12 h-12 bg-gradient-to-br ${item.color} rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300`}>
-                  <item.icon size={22} className="text-white" />
-                </div>
-                <span className="font-medium text-lg">{item.text}</span>
-              </div>
-            ))}
           </div>
         </div>
 
