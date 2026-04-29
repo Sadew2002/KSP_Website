@@ -2,16 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Package, 
   Users, 
-  DollarSign, 
   TrendingUp, 
   Plus, 
   Search, 
-  Filter, 
-  MoreVertical,
   Edit,
   Trash2,
   Eye,
-  ChevronRight,
   ChevronDown,
   Box,
   ShoppingCart,
@@ -21,7 +17,6 @@ import {
   LogOut,
   Menu,
   X,
-  Upload,
   Save,
   AlertCircle,
   RefreshCw,
@@ -169,6 +164,7 @@ const AdminDashboard = () => {
   };
 
   // Load profile when profile tab is active
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (activeTab === 'profile' && !adminProfile) {
       fetchAdminProfile();
@@ -214,6 +210,7 @@ const AdminDashboard = () => {
   };
 
   // Load orders when orders tab is active
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (activeTab === 'orders') {
       fetchOrders();
@@ -306,6 +303,7 @@ const AdminDashboard = () => {
   };
 
   // Load clients when clients tab is active
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (activeTab === 'clients') {
       fetchClients();
@@ -313,6 +311,7 @@ const AdminDashboard = () => {
   }, [activeTab, clientStatusFilter]);
 
   // Debounced search for clients
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (activeTab === 'clients') {
       const timer = setTimeout(() => {

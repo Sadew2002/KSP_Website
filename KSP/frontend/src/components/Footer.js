@@ -59,13 +59,13 @@ const Footer = ({ showNewsletter = false }) => {
                 { icon: <Youtube size={18} />, name: 'youtube' },
                 { icon: <FaTiktok size={18} />, name: 'tiktok' }
               ].map((social, i) => (
-                <a 
+                <button 
                   key={i} 
-                  href="#" 
+                  onClick={(e) => e.preventDefault()}
                   className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:bg-ksp-red hover:border-ksp-red hover:text-white transition-all duration-300"
                 >
                   {social.icon}
-                </a>
+                </button>
               ))}
             </div>
           </div>
@@ -97,10 +97,10 @@ const Footer = ({ showNewsletter = false }) => {
             <ul className="space-y-4">
               {['FAQ', 'Shipping Info', 'Returns', 'Track Order', 'Warranty'].map((link, i) => (
                 <li key={i}>
-                  <a href="#" className="text-gray-400 hover:text-ksp-red hover:pl-2 transition-all duration-300 flex items-center gap-2 group">
+                  <button onClick={(e) => e.preventDefault()} className="text-gray-400 hover:text-ksp-red hover:pl-2 transition-all duration-300 flex items-center gap-2 group bg-transparent border-none cursor-pointer">
                     <ArrowRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />
                     {link}
-                  </a>
+                  </button>
                 </li>
               ))}
             </ul>
@@ -161,9 +161,9 @@ const Footer = ({ showNewsletter = false }) => {
             </p>
             <div className="flex items-center gap-6">
               {['Privacy Policy', 'Terms of Service', 'Cookies'].map((link, i) => (
-                <a key={i} href="#" className="text-gray-500 text-sm hover:text-ksp-red transition-colors">
+                <button key={i} onClick={(e) => e.preventDefault()} className="text-gray-500 text-sm hover:text-ksp-red transition-colors bg-transparent border-none cursor-pointer">
                   {link}
-                </a>
+                </button>
               ))}
             </div>
             <div className="flex items-center gap-4">
