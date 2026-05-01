@@ -50,6 +50,18 @@ export const paymentService = {
   getPaymentStatus: (orderId) => api.get(`/payments/${orderId}`),
 };
 
+export const subscriptionService = {
+  subscribe: () => api.post('/subscriptions/subscribe'),
+};
+
+export const subscriberBroadcastService = {
+  sendBroadcast: (payload) => api.post('/admin/subscriptions/broadcast', payload),
+};
+
+export const subscriberListService = {
+  getSubscribers: () => api.get('/admin/subscriptions/subscribers'),
+};
+
 export const adminService = {
   // Products
   createProduct: (productData) => api.post('/admin/products', productData),

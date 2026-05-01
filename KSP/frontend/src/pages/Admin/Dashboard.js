@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Package, 
   Users, 
@@ -41,6 +41,7 @@ import {
 import api from '../../services/api';
 import { authService, adminService } from '../../services/apiService';
 import { useNavigate } from 'react-router-dom';
+import Subscriptions from './Subscriptions';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -144,7 +145,7 @@ const AdminDashboard = () => {
   };
 
   // Fetch admin profile
-  const fetchAdminProfile = async () => {
+  const fetchAdminProfile = useCallback(async () => {
     setProfileLoading(true);
     try {
       const response = await authService.getProfile();
@@ -166,24 +167,7 @@ const AdminDashboard = () => {
     } finally {
       setProfileLoading(false);
     }
-  };
-
-  // Helper function to calculate date range based on filter
-  const getDateRange = (filter) => {
-    const today = new Date();
-    const endDate = new Date(today);
-    let startDate = new Date(today);
-
-    if (filter === 'week') {
-      startDate.setDate(today.getDate() - 7);
-    } else if (filter === 'month') {
-      startDate.setMonth(today.getMonth() - 1);
-    } else if (filter === 'year') {
-      startDate.setFullYear(today.getFullYear() - 1);
-    }
-
-    return { startDate, endDate };
-  };
+  }, []);
 
   // Helper function to group daily sales into weeks
   const groupByWeek = (dailySales) => {
@@ -279,10 +263,21 @@ const AdminDashboard = () => {
   };
 
   // Fetch sales report
-  const fetchSalesReport = async () => {
+  const fetchSalesReport = useCallback(async () => {
     setSalesLoading(true);
     try {
-      const { startDate, endDate } = getDateRange(salesTimeFilter);
+      const today = new Date();
+      const endDate = new Date(today);
+      const startDate = new Date(today);
+
+      if (salesTimeFilter === 'week') {
+        startDate.setDate(today.getDate() - 7);
+      } else if (salesTimeFilter === 'month') {
+        startDate.setMonth(today.getMonth() - 1);
+      } else if (salesTimeFilter === 'year') {
+        startDate.setFullYear(today.getFullYear() - 1);
+      }
+
       const params = {
         startDate: startDate.toISOString().split('T')[0],
         endDate: endDate.toISOString().split('T')[0]
@@ -297,29 +292,28 @@ const AdminDashboard = () => {
     } finally {
       setSalesLoading(false);
     }
-  };
+  }, [salesTimeFilter]);
 
   // Fetch sales report when tab changes or filter changes
   useEffect(() => {
     if (activeTab === 'overview') {
       fetchSalesReport();
     }
-  }, [activeTab, salesTimeFilter]);
+  }, [activeTab, fetchSalesReport]);
 
   // Load profile when profile tab is active
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (activeTab === 'profile' && !adminProfile) {
       fetchAdminProfile();
     }
-  }, [activeTab]);
+  }, [activeTab, adminProfile, fetchAdminProfile]);
 
   // Also fetch profile on component mount for header dropdown
   useEffect(() => {
     if (!adminProfile) {
       fetchAdminProfile();
     }
-  }, []);
+  }, [adminProfile, fetchAdminProfile]);
 
   // Close profile dropdown when clicking outside
   useEffect(() => {
@@ -333,7 +327,7 @@ const AdminDashboard = () => {
   }, []);
 
   // Fetch all orders for admin
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     setOrdersLoading(true);
     try {
       const params = {};
@@ -350,10 +344,9 @@ const AdminDashboard = () => {
     } finally {
       setOrdersLoading(false);
     }
-  };
+  }, [orderStatusFilter]);
 
   // Load orders when orders tab is active
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (activeTab === 'orders') {
       fetchOrders();
@@ -361,7 +354,7 @@ const AdminDashboard = () => {
       const interval = setInterval(fetchOrders, 30000);
       return () => clearInterval(interval);
     }
-  }, [activeTab, orderStatusFilter]);
+  }, [activeTab, fetchOrders]);
 
   // Update order status
   const handleUpdateOrderStatus = async (orderId, newStatus) => {
@@ -423,7 +416,7 @@ const AdminDashboard = () => {
   };
 
   // Fetch all clients (customers)
-  const fetchClients = async () => {
+  const fetchClients = useCallback(async () => {
     setClientsLoading(true);
     try {
       const params = { role: 'customer' };
@@ -443,18 +436,16 @@ const AdminDashboard = () => {
     } finally {
       setClientsLoading(false);
     }
-  };
+  }, [clientSearchTerm, clientStatusFilter]);
 
   // Load clients when clients tab is active
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (activeTab === 'clients') {
       fetchClients();
     }
-  }, [activeTab, clientStatusFilter]);
+  }, [activeTab, fetchClients]);
 
   // Debounced search for clients
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (activeTab === 'clients') {
       const timer = setTimeout(() => {
@@ -462,7 +453,7 @@ const AdminDashboard = () => {
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [clientSearchTerm]);
+  }, [activeTab, fetchClients]);
 
   // Toggle client status (active/inactive)
   const handleToggleClientStatus = async (clientId, currentStatus) => {
@@ -1028,6 +1019,7 @@ const AdminDashboard = () => {
     { id: 'clients', label: 'Clients', icon: Users },
     { id: 'orders', label: 'Orders', icon: ShoppingCart },
     { id: 'payments', label: 'Payments', icon: CreditCard },
+    { id: 'subscriptions', label: 'Subscriptions', icon: Mail },
     { id: 'settings', label: 'Settings', icon: Settings },
     { id: 'profile', label: 'My Profile', icon: User }
   ];
@@ -2932,6 +2924,11 @@ const AdminDashboard = () => {
                 </div>
               )}
             </div>
+          )}
+
+          {/* Subscriptions Tab */}
+          {activeTab === 'subscriptions' && (
+            <Subscriptions />
           )}
 
           {/* Profile Tab */}

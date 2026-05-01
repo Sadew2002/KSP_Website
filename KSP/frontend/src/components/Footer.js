@@ -1,7 +1,58 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Phone, Mail, MapPin, Clock, ArrowRight, Send, Facebook, Instagram, Youtube } from 'lucide-react';
 import { FaTiktok, FaWhatsapp } from 'react-icons/fa';
+import { subscriptionService, authService } from '../services/apiService';
+
+// Small newsletter input component that wires the Subscribe button
+const NewsletterInput = () => {
+  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState(null);
+  const navigate = useNavigate();
+
+  const handleSubscribe = async () => {
+    const user = authService.getCurrentUser();
+    if (!user) {
+      // redirect to login if not authenticated
+      navigate('/login');
+      return;
+    }
+
+    setLoading(true);
+    setMessage(null);
+    try {
+      const res = await subscriptionService.subscribe();
+      setMessage(res?.data?.message || 'Subscribed successfully');
+      setEmail('');
+    } catch (err) {
+      console.error('Subscribe failed', err);
+      setMessage(err?.response?.data?.message || 'Subscription failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="flex w-full md:w-auto items-center gap-2">
+      <input
+        type="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        placeholder="Enter your email"
+        className="w-full md:w-80 px-6 py-4 rounded-l-full bg-white/10 backdrop-blur-md border border-white/20 text-white placeholder-white/60 focus:outline-none focus:border-white/50 transition-all"
+      />
+      <button
+        onClick={handleSubscribe}
+        disabled={loading}
+        className={`px-8 py-4 bg-white text-ksp-red font-bold rounded-r-full hover:bg-gray-100 transition-all duration-300 flex items-center gap-2 ${loading ? 'opacity-60 cursor-not-allowed' : ''}`}
+      >
+        {loading ? 'Subscribing...' : 'Subscribe'} <Send size={18} />
+      </button>
+      {message && <div className="text-sm text-white/90 ml-4">{message}</div>}
+    </div>
+  );
+};
 
 const Footer = ({ showNewsletter = false }) => {
   return (
@@ -20,16 +71,7 @@ const Footer = ({ showNewsletter = false }) => {
                 <h3 className="text-2xl md:text-3xl font-black text-white mb-2">Stay Updated</h3>
                 <p className="text-white/80">Get exclusive deals and latest arrivals directly to your inbox.</p>
               </div>
-              <div className="flex w-full md:w-auto">
-                <input 
-                  type="email" 
-                  placeholder="Enter your email" 
-                  className="w-full md:w-80 px-6 py-4 rounded-l-full bg-white/10 backdrop-blur-md border border-white/20 text-white placeholder-white/60 focus:outline-none focus:border-white/50 transition-all"
-                />
-                <button className="px-8 py-4 bg-white text-ksp-red font-bold rounded-r-full hover:bg-gray-100 transition-all duration-300 flex items-center gap-2">
-                  Subscribe <Send size={18} />
-                </button>
-              </div>
+              <NewsletterInput />
             </div>
           </div>
         </div>
