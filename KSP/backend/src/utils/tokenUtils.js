@@ -1,12 +1,17 @@
 const jwt = require('jsonwebtoken');
 
 const generateToken = (userId, role) => {
-  const token = jwt.sign(
-    { id: userId, role: role },
-    process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRE || '7d' }
-  );
-  return token;
+  try {
+    const token = jwt.sign(
+      { id: userId, role: role },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRE || '7d' }
+    );
+    return token;
+  } catch (error) {
+    console.error('Generate token error:', error);
+    throw new Error('Failed to generate token');
+  }
 };
 
 const verifyToken = (token) => {

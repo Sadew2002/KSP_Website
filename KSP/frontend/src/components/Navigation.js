@@ -2,29 +2,32 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Menu, X, ShoppingCart, Search, User, ChevronDown, LogOut } from 'lucide-react';
 import { authService } from '../services/apiService';
+import { useAuthStore } from '../context/store';
 
 const Navigation = () => {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [mobileDropdown, setMobileDropdown] = useState(null);
-  const [user, setUser] = useState(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const dropdownRef = useRef(null);
   const userMenuRef = useRef(null);
+  const { user, logout: storeLogout, setUser } = useAuthStore();
 
   const toggleMenu = () => setIsOpen(!isOpen);
 
-  // Check for logged in user
+  // Sync store user with any existing localStorage user on first load
   useEffect(() => {
-    const currentUser = authService.getCurrentUser();
-    setUser(currentUser);
-  }, []);
+    if (!user) {
+      const currentUser = authService.getCurrentUser();
+      if (currentUser) setUser(currentUser, localStorage.getItem('authToken'));
+    }
+  }, [user, setUser]);
 
   // Handle logout
   const handleLogout = () => {
     authService.logout();
-    setUser(null);
+    storeLogout();
     setShowUserMenu(false);
     navigate('/login');
   };
@@ -76,10 +79,11 @@ const Navigation = () => {
               className="h-12 w-12 lg:h-16 lg:w-16 object-contain group-hover:scale-110 transition-transform duration-300"
             />
             <div className="hidden sm:flex items-center gap-1">
-              <span className="text-base lg:text-xl font-black text-gray-900">
+              <span className="text-base lg:text-3xl font-black text-gray-900">
                 KANDY SUPER
               </span>
-              <span className="text-base lg:text-xl font-black text-ksp-red">
+              <span></span>
+              <span className="text-base lg:text-3xl font-black text-ksp-red">
                 PHONE
               </span>
             </div>

@@ -34,6 +34,7 @@ const orderSchema = new mongoose.Schema(
       type: String,
       enum: ['unpaid', 'pending_verification', 'paid', 'failed', 'refunded'],
       default: 'unpaid',
+      index: true,
     },
     bankSlipUrl: {
       type: String,
@@ -68,6 +69,12 @@ const orderSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+// Compound indexes for common queries
+orderSchema.index({ userId: 1, createdAt: -1 });
+orderSchema.index({ status: 1, createdAt: -1 });
+orderSchema.index({ paymentStatus: 1, createdAt: -1 });
+orderSchema.index({ userId: 1, status: 1 });
 
 // Convert Decimal128 to Number for JSON serialization
 orderSchema.set('toJSON', {

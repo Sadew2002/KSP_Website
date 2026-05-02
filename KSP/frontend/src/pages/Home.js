@@ -6,9 +6,11 @@ import {
   Headphones, 
   ArrowRight,
   Gift,
-  Tag
+  Tag,
+  Star
 } from 'lucide-react';
 import api from '../services/api';
+import { reviewService } from '../services/apiService';
 
 const Home = () => {
   const [, setIsHovered] = useState(false);
@@ -16,6 +18,8 @@ const Home = () => {
   const [loadingArrivals, setLoadingArrivals] = useState(true);
   const [premiumDeals, setPremiumDeals] = useState([]);
   const [loadingDeals, setLoadingDeals] = useState(true);
+  const [latestReviews, setLatestReviews] = useState([]);
+  const [loadingReviews, setLoadingReviews] = useState(true);
 
   // Get the backend URL for images
   const getImageUrl = (imageUrl) => {
@@ -71,8 +75,23 @@ const Home = () => {
       }
     };
     
+    // Fetch latest reviews
+    const fetchLatestReviews = async () => {
+      try {
+        const response = await reviewService.getLatestReviews(5);
+        console.log('⭐ Latest Reviews API Response:', response.data);
+        setLatestReviews(response.data.data?.reviews || []);
+      } catch (error) {
+        console.error('❌ Error fetching latest reviews:', error);
+        setLatestReviews([]);
+      } finally {
+        setLoadingReviews(false);
+      }
+    };
+    
     fetchNewArrivals();
     fetchPremiumDeals();
+    fetchLatestReviews();
   }, []);
 
   return (
@@ -488,6 +507,82 @@ const Home = () => {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* --- LATEST REVIEWS SECTION --- */}
+      <section className="bg-gray-50 py-20">
+        <div className="container mx-auto px-6">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl md:text-5xl font-black text-ksp-black mb-4">CUSTOMER REVIEWS</h2>
+            <p className="text-gray-600 text-lg">See what our customers are saying</p>
+          </div>
+          
+          {loadingReviews ? (
+            <div className="text-center py-12">
+              <p className="text-gray-500">Loading reviews...</p>
+            </div>
+          ) : latestReviews.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-gray-500">No reviews yet</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {latestReviews.slice(0, 5).map((review) => (
+                <div key={review._id} className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow">
+                  <div className="flex items-center gap-3 mb-4">
+                    {review.product?.imageUrl && (
+                      <img 
+                        src={getImageUrl(review.product.imageUrl)} 
+                        alt={review.product.name}
+                        className="w-16 h-16 object-cover rounded-lg"
+                        onError={(e) => { e.target.src = 'https://via.placeholder.com/64'; }}
+                      />
+                    )}
+                    <div className="flex-1">
+                      <Link 
+                        to={`/products/${review.product?._id}`} 
+                        className="font-bold text-ksp-black hover:text-ksp-red transition-colors line-clamp-1"
+                      >
+                        {review.product?.name || 'Product'}
+                      </Link>
+                      <p className="text-sm text-gray-500">{review.product?.brand}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-1 mb-3">
+                    {[...Array(5)].map((_, i) => (
+                      <Star 
+                        key={i} 
+                        size={16} 
+                        className={i < review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}
+                      />
+                    ))}
+                  </div>
+                  
+                  <p className="text-gray-700 mb-4 line-clamp-3">{review.comment}</p>
+                  
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-semibold text-ksp-black">{review.user?.name}</span>
+                    <span className="text-gray-500">
+                      {new Date(review.createdAt).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric'
+                      })}
+                    </span>
+                  </div>
+                  
+                  {review.isVerifiedPurchase && (
+                    <div className="mt-3 inline-flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full">
+                      <ShieldCheck size={12} />
+                      Verified Purchase
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 

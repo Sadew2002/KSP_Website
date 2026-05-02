@@ -5,6 +5,7 @@ import {
   CheckCircle, AlertCircle, Loader2, Sparkles
 } from 'lucide-react';
 import api from '../../services/api';
+import { useAuthStore } from '../../context/store';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -16,6 +17,7 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [focusedField, setFocusedField] = useState(null);
+  const { setUser } = useAuthStore();
 
   const startGoogleLogin = () => {
     const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
@@ -71,8 +73,7 @@ const Login = () => {
           localStorage.removeItem('rememberedEmail');
         }
 
-        localStorage.setItem('authToken', response.data.token);
-        localStorage.setItem('user', JSON.stringify(response.data.user));
+        setUser(response.data.user, response.data.token);
         setSuccess('Login successful! Redirecting...');
         
         setTimeout(() => {

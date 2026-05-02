@@ -22,6 +22,7 @@ const productSchema = new mongoose.Schema(
       type: mongoose.Decimal128,
       required: true,
       min: 0,
+      index: true,
     },
     storage: {
       type: String,
@@ -82,6 +83,16 @@ const productSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+// Compound indexes for common queries
+productSchema.index({ isActive: 1, brand: 1 });
+productSchema.index({ isActive: 1, createdAt: -1 });
+productSchema.index({ isActive: 1, price: 1 });
+productSchema.index({ isNewArrival: 1, isActive: 1 });
+productSchema.index({ isPremiumDeal: 1, isActive: 1 });
+
+// Text index for search functionality
+productSchema.index({ name: 'text', description: 'text', brand: 'text' });
 
 // Convert Decimal128 to Number for JSON serialization
 productSchema.set('toJSON', {
