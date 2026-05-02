@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Mail, Lock, Eye, EyeOff, ArrowRight, Smartphone, 
-  Shield, CheckCircle, AlertCircle, Loader2, Sparkles, Star
+  CheckCircle, AlertCircle, Loader2, Sparkles
 } from 'lucide-react';
 import api from '../../services/api';
 import { useAuthStore } from '../../context/store';
@@ -18,6 +18,11 @@ const Login = () => {
   const [rememberMe, setRememberMe] = useState(false);
   const [focusedField, setFocusedField] = useState(null);
   const { setUser } = useAuthStore();
+
+  const startGoogleLogin = () => {
+    const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+    window.location.href = `${apiBase}/auth/google`;
+  };
 
   // Check if already logged in
   useEffect(() => {
@@ -115,34 +120,19 @@ const Login = () => {
           </Link>
         </div>
 
-        <div className="relative z-10 space-y-10">
+        <div className="relative z-10 space-y-12 flex flex-col justify-between flex-1">
           <div>
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full mb-6">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full mb-8">
               <Sparkles size={16} className="text-yellow-300" />
               <span className="text-white/90 text-sm font-medium">Welcome Back!</span>
             </div>
-            <h1 className="text-5xl font-black text-white mb-6 leading-tight">
+            <h1 className="text-5xl font-black text-white mb-8 leading-tight">
               Sign in to your<br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 to-yellow-100">Account</span>
             </h1>
-            <p className="text-white/80 text-lg max-w-md leading-relaxed">
-              Access your orders, track deliveries, and discover exclusive deals on the latest smartphones.
+            <p className="text-white/70 text-lg max-w-xl leading-relaxed font-light">
+              Manage your orders, track deliveries, and enjoy exclusive member benefits. Shop with confidence on Sri Lanka's trusted mobile phone retailer since 2015.
             </p>
-          </div>
-
-          <div className="space-y-4">
-            {[
-              { icon: Shield, text: 'Secure & encrypted login', color: 'from-green-400 to-emerald-500' },
-              { icon: Smartphone, text: 'Access your orders anytime', color: 'from-blue-400 to-cyan-500' },
-              { icon: Star, text: 'Exclusive member deals', color: 'from-yellow-400 to-orange-500' }
-            ].map((item, idx) => (
-              <div key={idx} className="flex items-center gap-4 text-white/90 group">
-                <div className={`w-12 h-12 bg-gradient-to-br ${item.color} rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300`}>
-                  <item.icon size={22} className="text-white" />
-                </div>
-                <span className="font-medium text-lg">{item.text}</span>
-              </div>
-            ))}
           </div>
         </div>
 
@@ -164,14 +154,14 @@ const Login = () => {
             </Link>
           </div>
 
-          <div className="bg-white rounded-3xl shadow-2xl shadow-gray-200/60 p-8 md:p-10 border border-gray-100/50">
-            <div className="text-center mb-8">
+          <div className="bg-white rounded-3xl shadow-2xl shadow-gray-200/60 p-6 md:p-8 border border-gray-100/50">
+            <div className="text-center mb-6">
               <h2 className="text-3xl font-black text-ksp-black mb-2">Welcome Back</h2>
               <p className="text-gray-500 font-medium">Enter your credentials to continue</p>
             </div>
 
             {error && (
-              <div className="mb-6 p-4 bg-gradient-to-r from-red-50 to-rose-50 border border-red-100 rounded-2xl flex items-center gap-3 text-red-700 animate-shake">
+              <div className="mb-4 p-4 bg-gradient-to-r from-red-50 to-rose-50 border border-red-100 rounded-2xl flex items-center gap-3 text-red-700 animate-shake">
                 <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center flex-shrink-0">
                   <AlertCircle size={20} />
                 </div>
@@ -180,7 +170,7 @@ const Login = () => {
             )}
 
             {success && (
-              <div className="mb-6 p-4 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-100 rounded-2xl flex items-center gap-3 text-green-700">
+              <div className="mb-4 p-4 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-100 rounded-2xl flex items-center gap-3 text-green-700">
                 <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0">
                   <CheckCircle size={20} />
                 </div>
@@ -188,7 +178,7 @@ const Login = () => {
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-2">Email Address</label>
                 <div className={`relative transition-all duration-300 ${focusedField === 'email' ? 'transform scale-[1.02]' : ''}`}>
@@ -202,7 +192,7 @@ const Login = () => {
                     onChange={handleChange}
                     onFocus={() => setFocusedField('email')}
                     onBlur={() => setFocusedField(null)}
-                    className="w-full pl-16 pr-4 py-4 bg-ksp-gray border-2 border-transparent rounded-2xl focus:bg-white focus:border-ksp-red/30 focus:ring-4 focus:ring-ksp-red/10 transition-all duration-300 outline-none font-medium"
+                    className="w-full pl-16 pr-4 py-3.5 bg-ksp-gray border-2 border-transparent rounded-2xl focus:bg-white focus:border-ksp-red/30 focus:ring-4 focus:ring-ksp-red/10 transition-all duration-300 outline-none font-medium"
                     placeholder="you@example.com"
                     autoComplete="email"
                     disabled={loading}
@@ -223,7 +213,7 @@ const Login = () => {
                     onChange={handleChange}
                     onFocus={() => setFocusedField('password')}
                     onBlur={() => setFocusedField(null)}
-                    className="w-full pl-16 pr-14 py-4 bg-ksp-gray border-2 border-transparent rounded-2xl focus:bg-white focus:border-ksp-red/30 focus:ring-4 focus:ring-ksp-red/10 transition-all duration-300 outline-none font-medium"
+                    className="w-full pl-16 pr-14 py-3.5 bg-ksp-gray border-2 border-transparent rounded-2xl focus:bg-white focus:border-ksp-red/30 focus:ring-4 focus:ring-ksp-red/10 transition-all duration-300 outline-none font-medium"
                     placeholder="Enter your password"
                     autoComplete="current-password"
                     disabled={loading}
@@ -277,7 +267,30 @@ const Login = () => {
               </button>
             </form>
 
-            <div className="relative my-8">
+            <div className="relative my-4">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t-2 border-gray-100"></div>
+              </div>
+              <div className="relative flex justify-center">
+                <span className="px-4 bg-white text-sm text-gray-400 font-medium">Or continue with</span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={startGoogleLogin}
+              className="w-full py-4 px-4 bg-white border-2 border-gray-200 rounded-2xl font-semibold text-gray-700 hover:border-gray-300 hover:bg-gray-50 transition-all duration-300 flex items-center justify-center gap-3 group"
+            >
+              <svg className="w-5 h-5" viewBox="0 0 24 24" aria-hidden="true">
+                <path fill="#EA4335" d="M12 10.2v3.85h5.5c-.24 1.28-.97 2.36-2.06 3.09v2.57h3.33c1.95-1.8 3.08-4.45 3.08-7.59 0-.73-.07-1.43-.2-2.11H12z" />
+                <path fill="#34A853" d="M6.53 14.13l-.72.55-2.55 1.98C4.87 19.45 8.1 21.5 12 21.5c2.7 0 4.96-.89 6.62-2.42l-3.33-2.57c-.92.62-2.1.98-3.29.98-2.52 0-4.66-1.7-5.42-3.99z" />
+                <path fill="#4A90E2" d="M3.26 6.98A9.48 9.48 0 0 0 2.5 10.2c0 1.13.27 2.2.74 3.16l3.27-2.54A5.68 5.68 0 0 1 6.3 10.2c0-.63.11-1.24.2-1.55z" />
+                <path fill="#FBBC05" d="M12 5.27c1.47 0 2.79.51 3.83 1.5l2.87-2.87C17.01 2.28 14.77 1.5 12 1.5 8.1 1.5 4.87 3.55 3.26 6.98l3.03 2.35C7.34 7.2 9.48 5.27 12 5.27z" />
+              </svg>
+              Sign in with Google
+            </button>
+
+            <div className="relative my-5">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t-2 border-gray-100"></div>
               </div>
@@ -294,7 +307,7 @@ const Login = () => {
             </Link>
           </div>
 
-          <p className="text-center text-sm text-gray-500 mt-8">
+          <p className="text-center text-sm text-gray-500 mt-6">
             By signing in, you agree to our{' '}
             <Link to="/terms" className="text-ksp-red hover:underline font-medium">Terms of Service</Link>
             {' '}and{' '}

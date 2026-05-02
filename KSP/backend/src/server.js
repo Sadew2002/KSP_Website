@@ -106,6 +106,7 @@ app.use('/api/products', require('./routes/productRoutes'));
 app.use('/api/cart', authenticateToken, require('./routes/cartRoutes'));
 app.use('/api/orders', authenticateToken, require('./routes/orderRoutes'));
 app.use('/api/payments', authenticateToken, require('./routes/paymentRoutes'));
+app.use('/api/subscriptions', authenticateToken, require('./routes/subscriptionRoutes'));
 app.use('/api/reviews', require('./routes/reviewRoutes'));
 
 // Admin Routes (protected)
@@ -113,6 +114,7 @@ app.use('/api/admin/products', authenticateToken, require('./routes/adminProduct
 app.use('/api/admin/orders', authenticateToken, require('./routes/adminOrderRoutes'));
 app.use('/api/admin/users', authenticateToken, require('./routes/adminUserRoutes'));
 app.use('/api/admin/reports', authenticateToken, require('./routes/adminReportRoutes'));
+app.use('/api/admin/subscriptions', authenticateToken, require('./routes/adminSubscriptionRoutes'));
 
 // 404 Handler
 app.use((req, res) => {

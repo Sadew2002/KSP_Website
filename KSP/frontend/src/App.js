@@ -11,6 +11,7 @@ import PlaceOrder from './pages/PlaceOrder';
 import Profile from './pages/Profile';
 import OrderDetail from './pages/OrderDetail';
 import Login from './pages/Auth/Login';
+import AuthCallback from './pages/Auth/AuthCallback';
 import Register from './pages/Auth/Register';
 import ForgotPassword from './pages/Auth/ForgotPassword';
 import Orders from './pages/Orders';
@@ -53,6 +54,7 @@ const router = createBrowserRouter(
         { path: 'orders/:orderId', element: <OrderDetail /> },
         { path: 'about', element: <About /> },
         { path: 'login', element: <Login /> },
+        { path: 'auth/callback', element: <AuthCallback /> },
         { path: 'register', element: <Register /> },
         { path: 'forgot-password', element: <ForgotPassword /> },
         { path: 'admin/*', element: <AdminDashboard /> },

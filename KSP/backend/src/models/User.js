@@ -23,9 +23,26 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: true,
       minlength: 6,
       select: false, // Don't return password by default
+      required: function () {
+        return this.authProvider === 'local';
+      },
+    },
+    googleId: {
+      type: String,
+      default: null,
+      sparse: true,
+      index: true,
+    },
+    authProvider: {
+      type: String,
+      enum: ['local', 'google'],
+      default: 'local',
+    },
+    profileImage: {
+      type: String,
+      default: null,
     },
     phone: {
       type: String,
@@ -86,7 +103,7 @@ userSchema.index({ firstName: 'text', lastName: 'text', email: 'text' });
 // Hash password before saving
 userSchema.pre('save', async function (next) {
   // Only hash if password is modified
-  if (!this.isModified('password')) return next();
+  if (!this.isModified('password') || !this.password) return next();
 
   try {
     const salt = await bcrypt.genSalt(10);

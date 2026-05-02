@@ -1,8 +1,39 @@
 // Authentication Routes
 const express = require('express');
 const router = express.Router();
+const axios = require('axios');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+
+const getFrontendUrl = (path) => {
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+  return `${frontendUrl}${path}`;
+};
+
+const signAuthToken = (user) => jwt.sign(
+  {
+    id: user._id,
+    email: user.email,
+    role: user.role,
+    firstName: user.firstName,
+    lastName: user.lastName
+  },
+  process.env.JWT_SECRET || 'your_jwt_secret_key',
+  { expiresIn: '24h' }
+);
+
+const buildAuthRedirect = (user, token) => {
+  const payload = encodeURIComponent(JSON.stringify({
+    id: user._id,
+    email: user.email,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    role: user.role,
+    profileImage: user.profileImage || null
+  }));
+
+  return getFrontendUrl(`/auth/callback?token=${encodeURIComponent(token)}&user=${payload}`);
+};
 
 /**
  * POST /api/auth/register
@@ -41,17 +72,7 @@ router.post('/register', async (req, res) => {
     });
 
     // Generate JWT token for auto-login after registration
-    const token = jwt.sign(
-      {
-        id: user._id,
-        email: user.email,
-        role: user.role,
-        firstName: user.firstName,
-        lastName: user.lastName
-      },
-      process.env.JWT_SECRET || 'your_jwt_secret_key',
-      { expiresIn: '24h' }
-    );
+    const token = signAuthToken(user);
 
     res.status(201).json({
       success: true,
@@ -115,17 +136,7 @@ router.post('/login', async (req, res) => {
     await user.save();
 
     // Generate JWT token
-    const token = jwt.sign(
-      {
-        id: user._id,
-        email: user.email,
-        role: user.role,
-        firstName: user.firstName,
-        lastName: user.lastName
-      },
-      process.env.JWT_SECRET || 'your_jwt_secret_key',
-      { expiresIn: '24h' }
-    );
+    const token = signAuthToken(user);
 
     res.json({
       success: true,
@@ -229,6 +240,126 @@ router.post('/refresh-token', async (req, res) => {
       message: 'Failed to refresh token',
       error: error.message
     });
+  }
+});
+
+/**
+ * GET /api/auth/google
+ * Redirect user to Google consent screen
+ */
+router.get('/google', (req, res) => {
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const callbackUrl = process.env.GOOGLE_CALLBACK_URL;
+
+  if (!clientId || !callbackUrl) {
+    return res.status(500).json({
+      success: false,
+      message: 'Google sign-in is not configured'
+    });
+  }
+
+  const params = new URLSearchParams({
+    client_id: clientId,
+    redirect_uri: callbackUrl,
+    response_type: 'code',
+    scope: 'openid email profile',
+    access_type: 'offline',
+    prompt: 'select_account'
+  });
+
+  return res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`);
+});
+
+/**
+ * GET /api/auth/google/callback
+ * Handle Google OAuth callback and issue the app JWT
+ */
+router.get('/google/callback', async (req, res) => {
+  try {
+    const { code, error } = req.query;
+
+    if (error) {
+      return res.redirect(`${getFrontendUrl('/login')}?error=${encodeURIComponent(error)}`);
+    }
+
+    if (!code) {
+      return res.redirect(`${getFrontendUrl('/login')}?error=${encodeURIComponent('google_login_failed')}`);
+    }
+
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    const callbackUrl = process.env.GOOGLE_CALLBACK_URL;
+
+    if (!clientId || !clientSecret || !callbackUrl) {
+      return res.status(500).json({
+        success: false,
+        message: 'Google sign-in is not configured'
+      });
+    }
+
+    const tokenResponse = await axios.post('https://oauth2.googleapis.com/token', new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
+      code,
+      grant_type: 'authorization_code',
+      redirect_uri: callbackUrl
+    }).toString(), {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
+    });
+
+    const accessToken = tokenResponse.data.access_token;
+
+    const profileResponse = await axios.get('https://www.googleapis.com/oauth2/v2/userinfo', {
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
+    });
+
+    const googleProfile = profileResponse.data;
+    const email = (googleProfile.email || '').toLowerCase();
+    const googleId = googleProfile.id;
+
+    if (!email || !googleId) {
+      return res.redirect(`${getFrontendUrl('/login')}?error=${encodeURIComponent('google_profile_missing')}`);
+    }
+
+    const nameParts = (googleProfile.name || '').trim().split(/\s+/).filter(Boolean);
+    const firstName = nameParts[0] || 'Google';
+    const lastName = nameParts.slice(1).join(' ') || 'User';
+
+    let user = await User.findOne({ $or: [{ googleId }, { email }] });
+
+    if (!user) {
+      user = await User.create({
+        email,
+        firstName,
+        lastName,
+        googleId,
+        authProvider: 'google',
+        profileImage: googleProfile.picture || null,
+        phone: null,
+        role: 'customer',
+        isActive: true,
+        password: null
+      });
+    } else {
+      user.googleId = user.googleId || googleId;
+      user.authProvider = 'google';
+      if (!user.profileImage && googleProfile.picture) {
+        user.profileImage = googleProfile.picture;
+      }
+      user.lastLogin = new Date();
+      await user.save();
+    }
+
+    const token = signAuthToken(user);
+
+    return res.redirect(buildAuthRedirect(user, token));
+  } catch (error) {
+    console.error('Google OAuth error:', error.response?.data || error);
+    return res.redirect(`${getFrontendUrl('/login')}?error=${encodeURIComponent('google_login_failed')}`);
   }
 });
 

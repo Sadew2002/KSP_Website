@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Package, 
   Users, 
@@ -41,6 +41,7 @@ import {
 import api from '../../services/api';
 import { authService, adminService } from '../../services/apiService';
 import { useNavigate } from 'react-router-dom';
+import Subscriptions from './Subscriptions';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -83,6 +84,11 @@ const AdminDashboard = () => {
   const [clientStatusFilter, setClientStatusFilter] = useState('all');
   const [selectedClient, setSelectedClient] = useState(null);
   const [showClientDetail, setShowClientDetail] = useState(false);
+  
+  // Sales Report state
+  const [salesData, setSalesData] = useState(null);
+  const [salesLoading, setSalesLoading] = useState(false);
+  const [salesTimeFilter, setSalesTimeFilter] = useState('week');
   
   // Admin Profile state
   const [adminProfile, setAdminProfile] = useState(null);
@@ -139,7 +145,7 @@ const AdminDashboard = () => {
   };
 
   // Fetch admin profile
-  const fetchAdminProfile = async () => {
+  const fetchAdminProfile = useCallback(async () => {
     setProfileLoading(true);
     try {
       const response = await authService.getProfile();
@@ -161,22 +167,153 @@ const AdminDashboard = () => {
     } finally {
       setProfileLoading(false);
     }
+  }, []);
+
+  // Helper function to group daily sales into weeks
+  const groupByWeek = (dailySales) => {
+    const weekMap = {};
+    const weekLabels = {};
+
+    dailySales.forEach(day => {
+      const date = new Date(day._id);
+      const weekStart = new Date(date);
+      weekStart.setDate(date.getDate() - date.getDay());
+      const weekKey = weekStart.toISOString().split('T')[0];
+
+      if (!weekMap[weekKey]) {
+        weekMap[weekKey] = { orderCount: 0, revenue: 0 };
+        weekLabels[weekKey] = `W${Math.ceil((date.getDate()) / 7)}`;
+      }
+
+      weekMap[weekKey].orderCount += day.orderCount;
+      weekMap[weekKey].revenue += day.revenue;
+    });
+
+    return Object.entries(weekMap)
+      .map(([key, value]) => ({
+        _id: key,
+        orderCount: value.orderCount,
+        revenue: value.revenue,
+        label: weekLabels[key]
+      }))
+      .sort((a, b) => new Date(a._id) - new Date(b._id));
   };
 
+  // Helper function to group daily sales into months
+  const groupByMonth = (dailySales) => {
+    const monthMap = {};
+    const monthLabels = {};
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+    dailySales.forEach(day => {
+      const date = new Date(day._id);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+
+      if (!monthMap[monthKey]) {
+        monthMap[monthKey] = { orderCount: 0, revenue: 0 };
+        monthLabels[monthKey] = monthNames[date.getMonth()];
+      }
+
+      monthMap[monthKey].orderCount += day.orderCount;
+      monthMap[monthKey].revenue += day.revenue;
+    });
+
+    return Object.entries(monthMap)
+      .map(([key, value]) => ({
+        _id: key,
+        orderCount: value.orderCount,
+        revenue: value.revenue,
+        label: monthLabels[key]
+      }))
+      .sort((a, b) => a._id.localeCompare(b._id));
+  };
+
+  // Helper function to format chart data based on time filter
+  const getChartData = () => {
+    if (!salesData?.dailySales || salesData.dailySales.length === 0) {
+      return [];
+    }
+
+    if (salesTimeFilter === 'week') {
+      // For week, show each day with day name
+      return salesData.dailySales.map(day => {
+        const date = new Date(day._id);
+        const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        return {
+          ...day,
+          label: dayLabels[date.getDay()],
+          dateStr: day._id
+        };
+      });
+    } else if (salesTimeFilter === 'month') {
+      // For month, group by weeks
+      const weekData = groupByWeek(salesData.dailySales);
+      return weekData.map(week => ({
+        ...week,
+        dateStr: week._id
+      }));
+    } else if (salesTimeFilter === 'year') {
+      // For year, group by months
+      const monthData = groupByMonth(salesData.dailySales);
+      return monthData.map(month => ({
+        ...month,
+        dateStr: month._id
+      }));
+    }
+  };
+
+  // Fetch sales report
+  const fetchSalesReport = useCallback(async () => {
+    setSalesLoading(true);
+    try {
+      const today = new Date();
+      const endDate = new Date(today);
+      const startDate = new Date(today);
+
+      if (salesTimeFilter === 'week') {
+        startDate.setDate(today.getDate() - 7);
+      } else if (salesTimeFilter === 'month') {
+        startDate.setMonth(today.getMonth() - 1);
+      } else if (salesTimeFilter === 'year') {
+        startDate.setFullYear(today.getFullYear() - 1);
+      }
+
+      const params = {
+        startDate: startDate.toISOString().split('T')[0],
+        endDate: endDate.toISOString().split('T')[0]
+      };
+      const response = await adminService.getSalesReport(params);
+      if (response.data.success) {
+        setSalesData(response.data.data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch sales report:', err);
+      setError('Failed to load sales report');
+    } finally {
+      setSalesLoading(false);
+    }
+  }, [salesTimeFilter]);
+
+  // Fetch sales report when tab changes or filter changes
+  useEffect(() => {
+    if (activeTab === 'overview') {
+      fetchSalesReport();
+    }
+  }, [activeTab, fetchSalesReport]);
+
   // Load profile when profile tab is active
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (activeTab === 'profile' && !adminProfile) {
       fetchAdminProfile();
     }
-  }, [activeTab]);
+  }, [activeTab, adminProfile, fetchAdminProfile]);
 
   // Also fetch profile on component mount for header dropdown
   useEffect(() => {
     if (!adminProfile) {
       fetchAdminProfile();
     }
-  }, []);
+  }, [adminProfile, fetchAdminProfile]);
 
   // Close profile dropdown when clicking outside
   useEffect(() => {
@@ -190,7 +327,7 @@ const AdminDashboard = () => {
   }, []);
 
   // Fetch all orders for admin
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     setOrdersLoading(true);
     try {
       const params = {};
@@ -207,10 +344,9 @@ const AdminDashboard = () => {
     } finally {
       setOrdersLoading(false);
     }
-  };
+  }, [orderStatusFilter]);
 
   // Load orders when orders tab is active
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (activeTab === 'orders') {
       fetchOrders();
@@ -218,7 +354,7 @@ const AdminDashboard = () => {
       const interval = setInterval(fetchOrders, 30000);
       return () => clearInterval(interval);
     }
-  }, [activeTab, orderStatusFilter]);
+  }, [activeTab, fetchOrders]);
 
   // Update order status
   const handleUpdateOrderStatus = async (orderId, newStatus) => {
@@ -280,7 +416,7 @@ const AdminDashboard = () => {
   };
 
   // Fetch all clients (customers)
-  const fetchClients = async () => {
+  const fetchClients = useCallback(async () => {
     setClientsLoading(true);
     try {
       const params = { role: 'customer' };
@@ -300,18 +436,16 @@ const AdminDashboard = () => {
     } finally {
       setClientsLoading(false);
     }
-  };
+  }, [clientSearchTerm, clientStatusFilter]);
 
   // Load clients when clients tab is active
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (activeTab === 'clients') {
       fetchClients();
     }
-  }, [activeTab, clientStatusFilter]);
+  }, [activeTab, fetchClients]);
 
   // Debounced search for clients
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (activeTab === 'clients') {
       const timer = setTimeout(() => {
@@ -319,7 +453,7 @@ const AdminDashboard = () => {
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [clientSearchTerm]);
+  }, [activeTab, fetchClients]);
 
   // Toggle client status (active/inactive)
   const handleToggleClientStatus = async (clientId, currentStatus) => {
@@ -885,6 +1019,7 @@ const AdminDashboard = () => {
     { id: 'clients', label: 'Clients', icon: Users },
     { id: 'orders', label: 'Orders', icon: ShoppingCart },
     { id: 'payments', label: 'Payments', icon: CreditCard },
+    { id: 'subscriptions', label: 'Subscriptions', icon: Mail },
     { id: 'settings', label: 'Settings', icon: Settings },
     { id: 'profile', label: 'My Profile', icon: User }
   ];
@@ -1143,24 +1278,48 @@ const AdminDashboard = () => {
                 <div className="lg:col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
                   <div className="flex items-center justify-between mb-6">
                     <h2 className="text-xl font-bold text-gray-900">Sales Overview</h2>
-                    <select className="px-4 py-2 bg-gray-100 rounded-xl text-sm font-medium focus:outline-none">
-                      <option>This Week</option>
-                      <option>This Month</option>
-                      <option>This Year</option>
+                    <select 
+                      value={salesTimeFilter}
+                      onChange={(e) => setSalesTimeFilter(e.target.value)}
+                      className="px-4 py-2 bg-gray-100 rounded-xl text-sm font-medium focus:outline-none cursor-pointer hover:bg-gray-200 transition-colors"
+                    >
+                      <option value="week">This Week</option>
+                      <option value="month">This Month</option>
+                      <option value="year">This Year</option>
                     </select>
                   </div>
                   <div className="flex items-end justify-around h-64 bg-gradient-to-t from-gray-50 to-transparent rounded-xl p-6">
-                    {[65, 45, 80, 55, 90, 70, 85].map((height, i) => (
-                      <div key={i} className="flex flex-col items-center gap-2">
-                        <div 
-                          className="w-12 bg-gradient-to-t from-ksp-red to-red-400 rounded-t-lg transition-all hover:from-red-600 hover:to-red-500 cursor-pointer"
-                          style={{ height: `${height * 2}px` }}
-                        ></div>
-                        <span className="text-xs text-gray-500 font-medium">
-                          {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i]}
-                        </span>
+                    {salesLoading ? (
+                      <div className="w-full flex items-center justify-center">
+                        <RefreshCw size={24} className="animate-spin text-ksp-red" />
                       </div>
-                    ))}
+                    ) : (() => {
+                      const chartData = getChartData();
+                      return chartData && chartData.length > 0 ? (
+                        chartData.map((item, i) => {
+                          const maxRevenue = Math.max(...chartData.map(d => d.revenue || 0));
+                          const heightPercent = maxRevenue > 0 ? (item.revenue / maxRevenue) * 100 : 0;
+                          return (
+                            <div key={i} className="flex flex-col items-center gap-2 group">
+                              <div 
+                                className="bg-gradient-to-t from-ksp-red to-red-400 rounded-t-lg transition-all hover:from-red-600 hover:to-red-500 cursor-pointer hover:shadow-lg"
+                                style={{ 
+                                  width: salesTimeFilter === 'year' ? '30px' : '12px',
+                                  height: `${Math.max(heightPercent * 2, 20)}px` 
+                                }}
+                                title={`${item.dateStr}: ${item.orderCount} orders, LKR ${item.revenue.toLocaleString('en-LK', {maximumFractionDigits: 0})}`}
+                              ></div>
+                              <span className="text-xs text-gray-500 font-medium">{item.label}</span>
+                              <span className="text-xs text-gray-400 group-hover:text-gray-600 transition-colors">{item.orderCount}</span>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="w-full flex items-center justify-center text-gray-500">
+                          <p>No sales data available for this period</p>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
 
@@ -2765,6 +2924,11 @@ const AdminDashboard = () => {
                 </div>
               )}
             </div>
+          )}
+
+          {/* Subscriptions Tab */}
+          {activeTab === 'subscriptions' && (
+            <Subscriptions />
           )}
 
           {/* Profile Tab */}
