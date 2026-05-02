@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import { FaStar, FaShoppingCart, FaBox, FaShieldAlt, FaRegStar, FaStarHalfAlt, FaCheckCircle } from 'react-icons/fa';
+import { FaStar, FaShoppingCart, FaBox, FaShieldAlt, FaCheckCircle } from 'react-icons/fa';
 import { productService, reviewService, authService } from '../services/apiService';
 
 const ProductDetail = () => {
@@ -69,7 +69,9 @@ const ProductDetail = () => {
   const imageSrc = useMemo(() => {
     const url = product?.imageUrl?.trim();
     if (!url) return 'https://via.placeholder.com/500x500?text=No+Image';
-    return url.startsWith('http') ? url : `http://localhost:5000${url}`;
+    if (url.startsWith('http')) return url;
+    const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+    return `${baseUrl.replace('/api', '')}${url}`;
   }, [product]);
 
   const inStock = (product?.quantity ?? 0) > 0;

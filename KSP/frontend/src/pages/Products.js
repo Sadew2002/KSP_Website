@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { productService } from '../services/apiService';
 import { 
@@ -39,6 +39,13 @@ const Products = () => {
   
   const [sortBy, setSortBy] = useState('newest');
 
+  const getImageUrl = (imageUrl) => {
+    if (!imageUrl) return null;
+    if (imageUrl.startsWith('http')) return imageUrl;
+    const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+    return `${baseUrl.replace('/api', '')}${imageUrl}`;
+  };
+
   const brands = ['Apple', 'Samsung', 'Xiaomi', 'OnePlus', 'Google', 'Huawei', 'POCO', 'Realme'];
   const conditions = ['Brand New', 'Pre-Owned'];
   const storageOptions = ['64GB', '128GB', '256GB', '512GB', '1TB'];
@@ -56,12 +63,7 @@ const Products = () => {
     });
   }, [searchParams]);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    fetchProducts();
-  }, [filters, sortBy]);
-
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     setLoading(true);
     try {
       const params = {
@@ -81,7 +83,11 @@ const Products = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters, sortBy]);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
 
   const clearFilters = () => {
     setFilters({ brand: '', condition: '', productType: '', minPrice: '', maxPrice: '', storage: '', search: '' });
@@ -378,7 +384,7 @@ const Products = () => {
                   <div className="relative h-64 bg-gradient-to-br from-gray-100 to-gray-50 overflow-hidden">
                     <img 
                       src={product.imageUrl && product.imageUrl.trim() !== ''
-                        ? product.imageUrl
+                        ? getImageUrl(product.imageUrl)
                         : 'https://via.placeholder.com/300x300?text=Phone'
                       } 
                       alt={product.name}
@@ -457,7 +463,7 @@ const Products = () => {
                   <div className="w-48 h-48 bg-gradient-to-br from-gray-100 to-gray-50 flex-shrink-0 relative overflow-hidden">
                     <img 
                       src={product.imageUrl && product.imageUrl.trim() !== ''
-                        ? product.imageUrl
+                        ? getImageUrl(product.imageUrl)
                         : 'https://via.placeholder.com/200x200?text=Phone'
                       } 
                       alt={product.name}

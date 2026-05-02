@@ -628,16 +628,13 @@ const AdminDashboard = () => {
       console.log('📎 Server response:', response.data);
       
       if (response.data.success) {
-        // Store the temporary image URL
-        // This will be renamed to use product ID after product creation
         setProductForm(prev => ({ 
           ...prev, 
-          imageUrl: response.data.imageUrl 
+          imageUrl: response.data.secure_url || response.data.imageUrl 
         }));
-        console.log('💾 Image URL stored (temporary):', response.data.imageUrl);
-        console.log('💡 Image filename:', response.data.filename);
-        console.log('ℹ️ This temporary image will be renamed using the product ID after product is created');
-        setSuccess('✅ Image uploaded successfully! It will be renamed when you add the product.');
+        console.log('💾 Cloudinary image URL stored:', response.data.secure_url || response.data.imageUrl);
+        console.log('🆔 Cloudinary public ID:', response.data.public_id);
+        setSuccess('✅ Image uploaded successfully!');
         setTimeout(() => setSuccess(''), 3000);
       } else {
         const msg = response.data.message || 'Upload failed';
@@ -657,6 +654,10 @@ const AdminDashboard = () => {
       
       setError(msg);
       setImagePreview(null);
+      setProductForm(prev => ({
+        ...prev,
+        imageUrl: ''
+      }));
       setTimeout(() => setError(''), 5000);
     } finally {
       setUploadingImage(false);
@@ -851,35 +852,6 @@ const AdminDashboard = () => {
       
       console.log('✅ Product created successfully!');
       console.log('📦 Response data:', response.data);
-      
-      // If image was uploaded and product created, rename the image file to use product ID
-      if (productForm.imageUrl && response.data.product && response.data.product._id) {
-        const productId = response.data.product._id;
-        const tempFilename = productForm.imageUrl.split('/').pop(); // Extract filename
-        
-        console.log('🖼️ Renaming image for product:', productId);
-        
-        try {
-          const renameResponse = await api.post('/upload/rename-image', {
-            oldFilename: tempFilename,
-            productId: productId
-          });
-          
-          if (renameResponse.data.success) {
-            console.log('✅ Image renamed successfully:', renameResponse.data.imageUrl);
-            
-            // Update product with new image URL
-            const updateResponse = await api.put(`/admin/products/${productId}`, {
-              imageUrl: renameResponse.data.imageUrl
-            });
-            
-            console.log('✅ Product image URL updated:', updateResponse.data);
-          }
-        } catch (renameErr) {
-          console.warn('⚠️ Could not rename image:', renameErr.message);
-          // Don't fail the product creation if image rename fails
-        }
-      }
       
       setSuccess('Product created successfully!');
       setShowAddProduct(false);
