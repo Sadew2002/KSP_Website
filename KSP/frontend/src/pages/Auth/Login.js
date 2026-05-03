@@ -1,319 +1,608 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { 
-  Mail, Lock, Eye, EyeOff, ArrowRight, Smartphone, 
-  CheckCircle, AlertCircle, Loader2, Sparkles
-} from 'lucide-react';
-import api from '../../services/api';
-import { useAuthStore } from '../../context/store';
+import React, { useState, useEffect, useRef } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import {
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  ArrowRight,
+  CheckCircle,
+  AlertCircle,
+  Loader2,
+  ChevronRight,
+} from "lucide-react";
+import api from "../../services/api";
+import { useAuthStore } from "../../context/store";
 
+/* ─── Input field ──────────────────────────────────────────────── */
+const Field = ({
+  label,
+  id,
+  type = "text",
+  name,
+  value,
+  onChange,
+  onFocus,
+  onBlur,
+  placeholder,
+  autoComplete,
+  disabled,
+  icon: Icon,
+  suffix,
+  focused,
+  error,
+}) => (
+  <div>
+    <label
+      htmlFor={id}
+      className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2"
+    >
+      {label}
+    </label>
+    <div
+      className={`flex items-center rounded-xl border transition-all duration-300 ${
+        error
+          ? "border-red-400/60 bg-red-50/60"
+          : focused
+            ? "border-ksp-red/50 bg-white shadow-md shadow-ksp-red/8 ring-1 ring-ksp-red/8"
+            : ""
+      }`}
+      style={
+        !error && !focused
+          ? {
+              borderColor: "rgba(0,0,0,0.09)",
+              background: "rgba(0,0,0,0.03)",
+            }
+          : {}
+      }
+    >
+      <div
+        className="ml-3.5 flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300"
+        style={
+          focused
+            ? {
+                background: "linear-gradient(135deg,#EF014F,#FF6B2B)",
+                boxShadow: "0 4px 12px rgba(239,1,79,0.35)",
+              }
+            : error
+              ? { background: "rgba(254,226,226,0.8)" }
+              : { background: "rgba(0,0,0,0.06)" }
+        }
+      >
+        <Icon
+          size={14}
+          className={
+            focused ? "text-white" : error ? "text-red-500" : "text-gray-400"
+          }
+        />
+      </div>
+      <input
+        id={id}
+        type={type}
+        name={name}
+        value={value}
+        onChange={onChange}
+        onFocus={onFocus}
+        onBlur={onBlur}
+        placeholder={placeholder}
+        autoComplete={autoComplete}
+        disabled={disabled}
+        className="flex-1 px-4 py-3.5 bg-transparent outline-none text-gray-800 font-medium placeholder-gray-400 text-sm tracking-wide"
+      />
+      {suffix && <div className="mr-3 flex-shrink-0">{suffix}</div>}
+    </div>
+    {error && (
+      <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-red-500 font-semibold">
+        <span className="w-1 h-1 rounded-full bg-red-500 flex-shrink-0" />
+        {error}
+      </p>
+    )}
+  </div>
+);
+
+/* ═══════════════════════════════════════════════════════════════ */
 const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [formData, setFormData] = useState({ email: '', password: '' });
-  const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState(location.state?.message || '');
-  const [success, setSuccess] = useState('');
+  const cardRef = useRef(null);
+
+  const [form, setForm] = useState({ email: "", password: "" });
+  const [showPwd, setShowPwd] = useState(false);
+  const [error, setError] = useState(location.state?.message || "");
+  const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
-  const [focusedField, setFocusedField] = useState(null);
+  const [remember, setRemember] = useState(false);
+  const [focused, setFocused] = useState(null);
+  const [mounted, setMounted] = useState(false);
   const { setUser } = useAuthStore();
 
-  const startGoogleLogin = () => {
-    const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
-    window.location.href = `${apiBase}/auth/google`;
+  useEffect(() => {
+    const t = setTimeout(() => setMounted(true), 80);
+    return () => clearTimeout(t);
+  }, []);
+
+  const startGoogle = () => {
+    const base = process.env.REACT_APP_API_URL || "http://localhost:5000/api";
+    window.location.href = `${base}/auth/google`;
   };
 
-  // Check if already logged in
   useEffect(() => {
-    const token = localStorage.getItem('authToken');
-    const user = localStorage.getItem('user');
-    if (token && user) {
-      const userData = JSON.parse(user);
-      navigate(userData.role === 'admin' ? '/admin' : '/');
-    }
+    const token = localStorage.getItem("authToken");
+    const user = localStorage.getItem("user");
+    if (token && user)
+      navigate(JSON.parse(user).role === "admin" ? "/admin" : "/");
   }, [navigate]);
 
-  // Load remembered email
   useEffect(() => {
-    const rememberedEmail = localStorage.getItem('rememberedEmail');
-    if (rememberedEmail) {
-      setFormData(prev => ({ ...prev, email: rememberedEmail }));
-      setRememberMe(true);
+    const saved = localStorage.getItem("rememberedEmail");
+    if (saved) {
+      setForm((p) => ({ ...p, email: saved }));
+      setRemember(true);
     }
   }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    if (error) setError('');
+    setForm((p) => ({ ...p, [name]: value }));
+    if (error) setError("");
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    setError("");
     setLoading(true);
-
-    if (!formData.email || !formData.password) {
-      setError('Please fill in all fields');
+    if (!form.email || !form.password) {
+      setError("Please fill in all fields");
       setLoading(false);
       return;
     }
-
     try {
-      const response = await api.post('/auth/login', {
-        email: formData.email.toLowerCase().trim(),
-        password: formData.password
+      const res = await api.post("/auth/login", {
+        email: form.email.toLowerCase().trim(),
+        password: form.password,
       });
-
-      if (response.data.success) {
-        if (rememberMe) {
-          localStorage.setItem('rememberedEmail', formData.email);
-        } else {
-          localStorage.removeItem('rememberedEmail');
-        }
-
-        setUser(response.data.user, response.data.token);
-        setSuccess('Login successful! Redirecting...');
-        
-        setTimeout(() => {
-          const redirectTo = location.state?.from || 
-            (response.data.user.role === 'admin' ? '/admin' : '/');
-          navigate(redirectTo);
-        }, 500);
+      if (res.data.success) {
+        remember
+          ? localStorage.setItem("rememberedEmail", form.email)
+          : localStorage.removeItem("rememberedEmail");
+        setUser(res.data.user, res.data.token);
+        setSuccess("Login successful! Redirecting…");
+        setTimeout(
+          () =>
+            navigate(
+              location.state?.from ||
+                (res.data.user.role === "admin" ? "/admin" : "/"),
+            ),
+          700,
+        );
       }
     } catch (err) {
-      console.error('Login error:', err);
-      setError(err.response?.data?.message || 'Invalid email or password. Please try again.');
+      setError(
+        err.response?.data?.message ||
+          "Invalid email or password. Please try again.",
+      );
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-ksp-gray via-white to-red-50/30 flex">
-      {/* Left Side - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-ksp-red via-red-500 to-rose-600 p-12 flex-col justify-between relative overflow-hidden">
-        {/* Animated Background Elements */}
-        <div className="absolute inset-0">
-          <div className="absolute top-20 left-20 w-64 h-64 bg-white/10 rounded-full blur-3xl animate-pulse"></div>
-          <div className="absolute bottom-20 right-20 w-96 h-96 bg-white/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
-          <div className="absolute top-1/2 left-1/3 w-48 h-48 bg-yellow-300/10 rounded-full blur-2xl animate-pulse" style={{ animationDelay: '2s' }}></div>
-        </div>
-        
-        {/* Decorative Pattern */}
-        <div className="absolute inset-0 opacity-5">
-          <div className="absolute top-0 left-0 w-full h-full" style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-          }}></div>
-        </div>
-
-        <div className="relative z-10">
-          <Link to="/" className="flex items-center gap-3 group">
-            <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-2xl shadow-black/20 group-hover:scale-105 transition-transform duration-300">
-              <Smartphone className="text-ksp-red" size={32} />
-            </div>
-            <div>
-              <span className="text-2xl font-black text-white tracking-tight">Kandy Super Phone</span>
-              <span className="block text-sm text-white/70 font-medium">Premium Mobile Store</span>
-            </div>
-          </Link>
-        </div>
-
-        <div className="relative z-10 space-y-12 flex flex-col justify-between flex-1">
-          <div>
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full mb-8">
-              <Sparkles size={16} className="text-yellow-300" />
-              <span className="text-white/90 text-sm font-medium">Welcome Back!</span>
-            </div>
-            <h1 className="text-5xl font-black text-white mb-8 leading-tight">
-              Sign in to your<br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 to-yellow-100">Account</span>
-            </h1>
-            <p className="text-white/70 text-lg max-w-xl leading-relaxed font-light">
-              Manage your orders, track deliveries, and enjoy exclusive member benefits. Shop with confidence on Sri Lanka's trusted mobile phone retailer since 2015.
-            </p>
-          </div>
-        </div>
-
-        <div className="relative z-10">
-          <p className="text-white/60 text-sm">© 2026 Kandy Super Phone. All rights reserved.</p>
-        </div>
+    <div
+      className="min-h-screen flex items-center justify-center relative overflow-hidden px-4 py-10"
+      style={{
+        background:
+          "linear-gradient(135deg, #fff5f7 0%, #fef0f5 25%, #fffbfc 60%, #f8f5ff 100%)",
+      }}
+    >
+      {/* ── Background ambient orbs ── */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        {/* Top-left red bloom */}
+        <div
+          className="absolute w-[500px] h-[500px] rounded-full"
+          style={{
+            top: "-15%",
+            left: "-10%",
+            background:
+              "radial-gradient(circle, rgba(239,1,79,0.10) 0%, transparent 65%)",
+          }}
+        />
+        {/* Top-right orange */}
+        <div
+          className="absolute w-[400px] h-[400px] rounded-full"
+          style={{
+            top: "-10%",
+            right: "-8%",
+            background:
+              "radial-gradient(circle, rgba(234,88,12,0.08) 0%, transparent 65%)",
+          }}
+        />
+        {/* Bottom-right */}
+        <div
+          className="absolute w-[450px] h-[450px] rounded-full"
+          style={{
+            bottom: "-15%",
+            right: "-10%",
+            background:
+              "radial-gradient(circle, rgba(200,20,80,0.08) 0%, transparent 65%)",
+          }}
+        />
+        {/* Bottom-left ember */}
+        <div
+          className="absolute w-[350px] h-[350px] rounded-full"
+          style={{
+            bottom: "-10%",
+            left: "-8%",
+            background:
+              "radial-gradient(circle, rgba(239,1,79,0.06) 0%, transparent 65%)",
+          }}
+        />
+        {/* Centre warm glow */}
+        <div
+          className="absolute w-[300px] h-[300px] rounded-full"
+          style={{
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%,-50%)",
+            background:
+              "radial-gradient(circle, rgba(239,1,79,0.05) 0%, transparent 70%)",
+          }}
+        />
       </div>
 
-      {/* Right Side - Login Form */}
-      <div className="flex-1 flex items-center justify-center p-6 md:p-12">
-        <div className="w-full max-w-md">
-          {/* Mobile Logo */}
-          <div className="lg:hidden text-center mb-10">
-            <Link to="/" className="inline-flex items-center gap-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-ksp-red to-red-600 rounded-xl flex items-center justify-center shadow-lg">
-                <Smartphone className="text-white" size={26} />
-              </div>
-              <span className="text-xl font-black text-ksp-black">Kandy Super Phone</span>
-            </Link>
-          </div>
+      {/* ── Noise grain overlay ── */}
+      <div
+        className="absolute inset-0 opacity-[0.02] pointer-events-none"
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+        }}
+      />
 
-          <div className="bg-white rounded-3xl shadow-2xl shadow-gray-200/60 p-6 md:p-8 border border-gray-100/50">
-            <div className="text-center mb-6">
-              <h2 className="text-3xl font-black text-ksp-black mb-2">Welcome Back</h2>
-              <p className="text-gray-500 font-medium">Enter your credentials to continue</p>
+      {/* ── Login card ── */}
+      <div
+        ref={cardRef}
+        className={`relative z-10 w-full max-w-[410px] transition-all duration-700 ease-out ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}
+      >
+        {/* Card */}
+        <div
+          className="rounded-3xl overflow-hidden w-full max-w-[410px]"
+          style={{
+            background: "rgba(255,255,255,0.92)",
+            border: "1px solid rgba(239,1,79,0.12)",
+            backdropFilter: "blur(20px)",
+            boxShadow:
+              "0 24px 64px rgba(0,0,0,0.10), 0 8px 24px rgba(239,1,79,0.06), inset 0 1px 0 rgba(255,255,255,1)",
+          }}
+        >
+          {/* Top gradient accent bar */}
+          <div
+            className="h-[3px] w-full"
+            style={{
+              background:
+                "linear-gradient(90deg, #EF014F 0%, #FF4500 40%, #FF6B2B 70%, #EF014F 100%)",
+            }}
+          />
+
+          <div className="px-8 pt-8 pb-9">
+            {/* ── Logo ── */}
+            <Link to="/" className="flex items-center gap-3 group w-fit mb-8">
+              <div className="relative">
+                <img
+                  src="/images/ksp-logo.png"
+                  alt="KSP"
+                  className="h-9 w-auto object-contain relative z-10 group-hover:scale-105 transition-transform duration-300"
+                />
+                <div className="absolute inset-0 bg-ksp-red/25 blur-md rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              </div>
+              <div className="leading-tight">
+                <span className="block text-[14px] font-black text-ksp-black tracking-tight">
+                  Kandy Super Phone
+                </span>
+                <span className="block text-[9px] text-gray-400 font-bold tracking-[0.2em] uppercase mt-0.5">
+                  Premium Mobile Store
+                </span>
+              </div>
+            </Link>
+
+            {/* ── Heading ── */}
+            <div className="mb-7">
+              {/* Eyebrow */}
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-5 h-[2px] bg-ksp-red rounded-full" />
+                <div
+                  className="w-2 h-[2px] rounded-full"
+                  style={{ background: "rgba(234,88,12,0.6)" }}
+                />
+                <span className="text-[9px] font-black text-ksp-red uppercase tracking-[0.25em]">
+                  Secure Login
+                </span>
+              </div>
+
+              <h1
+                className="font-black text-ksp-black leading-[1.02] mb-2.5"
+                style={{ fontSize: "clamp(2.2rem, 4vw, 2.8rem)" }}
+              >
+                Welcome
+                <br />
+                <span
+                  className="text-transparent bg-clip-text"
+                  style={{
+                    backgroundImage:
+                      "linear-gradient(135deg, #FF6B2B 0%, #EF014F 55%, #FF1A6C 100%)",
+                  }}
+                >
+                  Back.
+                </span>
+              </h1>
+              <p className="text-gray-500 text-sm leading-relaxed">
+                Sign in to manage your orders and exclusive deals.
+              </p>
             </div>
 
+            {/* ── Error ── */}
             {error && (
-              <div className="mb-4 p-4 bg-gradient-to-r from-red-50 to-rose-50 border border-red-100 rounded-2xl flex items-center gap-3 text-red-700 animate-shake">
-                <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <AlertCircle size={20} />
-                </div>
-                <span className="text-sm font-medium">{error}</span>
+              <div
+                className="mb-5 flex items-start gap-3 px-4 py-3 rounded-xl animate-shake"
+                style={{
+                  background: "rgba(254,226,226,0.7)",
+                  border: "1px solid rgba(239,68,68,0.25)",
+                }}
+              >
+                <AlertCircle
+                  size={15}
+                  className="text-red-500 flex-shrink-0 mt-0.5"
+                />
+                <p className="text-sm text-red-700 font-medium leading-snug">
+                  {error}
+                </p>
               </div>
             )}
 
+            {/* ── Success ── */}
             {success && (
-              <div className="mb-4 p-4 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-100 rounded-2xl flex items-center gap-3 text-green-700">
-                <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <CheckCircle size={20} />
-                </div>
-                <span className="text-sm font-medium">{success}</span>
+              <div
+                className="mb-5 flex items-center gap-3 px-4 py-3 rounded-xl"
+                style={{
+                  background: "rgba(220,252,231,0.7)",
+                  border: "1px solid rgba(34,197,94,0.25)",
+                }}
+              >
+                <CheckCircle
+                  size={15}
+                  className="text-green-600 flex-shrink-0"
+                />
+                <p className="text-sm text-green-700 font-medium">{success}</p>
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">Email Address</label>
-                <div className={`relative transition-all duration-300 ${focusedField === 'email' ? 'transform scale-[1.02]' : ''}`}>
-                  <div className={`absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 ${focusedField === 'email' ? 'bg-ksp-red' : 'bg-gray-100'}`}>
-                    <Mail className={`transition-colors duration-300 ${focusedField === 'email' ? 'text-white' : 'text-gray-400'}`} size={18} />
-                  </div>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    onFocus={() => setFocusedField('email')}
-                    onBlur={() => setFocusedField(null)}
-                    className="w-full pl-16 pr-4 py-3.5 bg-ksp-gray border-2 border-transparent rounded-2xl focus:bg-white focus:border-ksp-red/30 focus:ring-4 focus:ring-ksp-red/10 transition-all duration-300 outline-none font-medium"
-                    placeholder="you@example.com"
-                    autoComplete="email"
-                    disabled={loading}
-                  />
-                </div>
-              </div>
+            {/* ── Form ── */}
+            <form onSubmit={handleSubmit} noValidate className="space-y-4">
+              <Field
+                label="Email Address"
+                id="email"
+                type="email"
+                name="email"
+                value={form.email}
+                onChange={handleChange}
+                onFocus={() => setFocused("email")}
+                onBlur={() => setFocused(null)}
+                placeholder="you@example.com"
+                autoComplete="email"
+                disabled={loading}
+                icon={Mail}
+                focused={focused === "email"}
+              />
 
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">Password</label>
-                <div className={`relative transition-all duration-300 ${focusedField === 'password' ? 'transform scale-[1.02]' : ''}`}>
-                  <div className={`absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 ${focusedField === 'password' ? 'bg-ksp-red' : 'bg-gray-100'}`}>
-                    <Lock className={`transition-colors duration-300 ${focusedField === 'password' ? 'text-white' : 'text-gray-400'}`} size={18} />
-                  </div>
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    name="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    onFocus={() => setFocusedField('password')}
-                    onBlur={() => setFocusedField(null)}
-                    className="w-full pl-16 pr-14 py-3.5 bg-ksp-gray border-2 border-transparent rounded-2xl focus:bg-white focus:border-ksp-red/30 focus:ring-4 focus:ring-ksp-red/10 transition-all duration-300 outline-none font-medium"
-                    placeholder="Enter your password"
-                    autoComplete="current-password"
-                    disabled={loading}
-                  />
+              <Field
+                label="Password"
+                id="password"
+                type={showPwd ? "text" : "password"}
+                name="password"
+                value={form.password}
+                onChange={handleChange}
+                onFocus={() => setFocused("password")}
+                onBlur={() => setFocused(null)}
+                placeholder="Enter your password"
+                autoComplete="current-password"
+                disabled={loading}
+                icon={Lock}
+                focused={focused === "password"}
+                suffix={
                   <button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center text-gray-400 hover:text-ksp-red rounded-xl hover:bg-gray-100 transition-all duration-300"
+                    tabIndex={-1}
+                    onClick={() => setShowPwd((v) => !v)}
+                    className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 transition-colors duration-200"
                   >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    {showPwd ? <EyeOff size={14} /> : <Eye size={14} />}
                   </button>
-                </div>
-              </div>
+                }
+              />
 
-              <div className="flex items-center justify-between">
-                <label className="flex items-center gap-3 cursor-pointer group">
-                  <div className="relative">
-                    <input
-                      type="checkbox"
-                      checked={rememberMe}
-                      onChange={(e) => setRememberMe(e.target.checked)}
-                      className="sr-only"
-                    />
-                    <div className={`w-5 h-5 rounded-lg border-2 transition-all duration-300 flex items-center justify-center ${rememberMe ? 'bg-ksp-red border-ksp-red' : 'border-gray-300 group-hover:border-ksp-red/50'}`}>
-                      {rememberMe && <CheckCircle size={14} className="text-white" />}
-                    </div>
-                  </div>
-                  <span className="text-sm text-gray-600 font-medium group-hover:text-gray-900 transition-colors">Remember me</span>
+              {/* Remember + Forgot */}
+              <div className="flex items-center justify-between pt-0.5">
+                <label className="flex items-center gap-2.5 cursor-pointer group/chk select-none">
+                  <button
+                    type="button"
+                    role="checkbox"
+                    aria-checked={remember}
+                    onClick={() => setRemember((v) => !v)}
+                    className="w-[18px] h-[18px] rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all duration-200"
+                    style={
+                      remember
+                        ? {
+                            background:
+                              "linear-gradient(135deg,#EF014F,#FF6B2B)",
+                            borderColor: "#EF014F",
+                            boxShadow: "0 0 8px rgba(239,1,79,0.4)",
+                          }
+                        : { borderColor: "rgba(0,0,0,0.2)" }
+                    }
+                    onMouseEnter={(e) => {
+                      if (!remember)
+                        e.currentTarget.style.borderColor = "rgba(0,0,0,0.35)";
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!remember)
+                        e.currentTarget.style.borderColor = "rgba(0,0,0,0.2)";
+                    }}
+                  >
+                    {remember && (
+                      <svg
+                        viewBox="0 0 10 8"
+                        className="w-2.5 h-2.5 fill-none stroke-white stroke-[2.5]"
+                      >
+                        <path
+                          d="M1 4l3 3 5-6"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    )}
+                  </button>
+                  <span className="text-xs text-gray-600 font-medium group-hover/chk:text-gray-900 transition-colors">
+                    Remember me
+                  </span>
                 </label>
-                <Link to="/forgot-password" className="text-sm text-ksp-red hover:text-red-700 font-semibold transition-colors hover:underline decoration-2 underline-offset-2">
+                <Link
+                  to="/forgot-password"
+                  className="text-xs font-bold transition-colors hover:brightness-125"
+                  style={{ color: "#EF014F" }}
+                >
                   Forgot password?
                 </Link>
               </div>
 
+              {/* Submit */}
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-gradient-to-r from-ksp-red to-red-600 text-white py-4 rounded-2xl font-bold text-lg hover:from-red-600 hover:to-red-700 transition-all duration-300 shadow-xl shadow-red-200/50 hover:shadow-2xl hover:shadow-red-300/50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-[0.98]"
+                className="relative w-full overflow-hidden rounded-xl py-3.5 font-bold text-white text-sm tracking-wide
+                  transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] group mt-2"
+                style={{
+                  background:
+                    "linear-gradient(135deg, #EF014F 0%, #C8000E 45%, #C45200 100%)",
+                  boxShadow:
+                    "0 0 28px rgba(239,1,79,0.35), 0 4px 20px rgba(0,0,0,0.5)",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.boxShadow =
+                    "0 0 45px rgba(239,1,79,0.55), 0 0 20px rgba(234,88,12,0.3), 0 4px 24px rgba(0,0,0,0.6)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.boxShadow =
+                    "0 0 28px rgba(239,1,79,0.35), 0 4px 20px rgba(0,0,0,0.5)";
+                }}
               >
-                {loading ? (
-                  <>
-                    <Loader2 size={22} className="animate-spin" />
-                    Signing in...
-                  </>
-                ) : (
-                  <>
-                    Sign In
-                    <ArrowRight size={22} />
-                  </>
-                )}
+                <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/15 to-transparent pointer-events-none" />
+                <span className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/35 to-transparent" />
+                <span className="relative flex items-center justify-center gap-2.5">
+                  {loading ? (
+                    <>
+                      <Loader2 size={17} className="animate-spin" /> Signing in…
+                    </>
+                  ) : (
+                    <>
+                      Sign In{" "}
+                      <ArrowRight
+                        size={17}
+                        className="group-hover:translate-x-1.5 transition-transform duration-200"
+                      />
+                    </>
+                  )}
+                </span>
               </button>
             </form>
 
-            <div className="relative my-4">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t-2 border-gray-100"></div>
-              </div>
-              <div className="relative flex justify-center">
-                <span className="px-4 bg-white text-sm text-gray-400 font-medium">Or continue with</span>
-              </div>
+            {/* Divider */}
+            <div className="flex items-center gap-3 my-5">
+              <div
+                className="flex-1 h-px"
+                style={{
+                  background:
+                    "linear-gradient(to right, transparent, rgba(0,0,0,0.08))",
+                }}
+              />
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">
+                or
+              </span>
+              <div
+                className="flex-1 h-px"
+                style={{
+                  background:
+                    "linear-gradient(to left, transparent, rgba(0,0,0,0.08))",
+                }}
+              />
             </div>
 
+            {/* Google */}
             <button
               type="button"
-              onClick={startGoogleLogin}
-              className="w-full py-4 px-4 bg-white border-2 border-gray-200 rounded-2xl font-semibold text-gray-700 hover:border-gray-300 hover:bg-gray-50 transition-all duration-300 flex items-center justify-center gap-3 group"
+              onClick={startGoogle}
+              className="w-full flex items-center gap-3 py-3 px-4 rounded-xl transition-all duration-200 group/g"
+              style={{
+                background: "white",
+                border: "1px solid rgba(0,0,0,0.1)",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "#f9fafb";
+                e.currentTarget.style.border = "1px solid rgba(0,0,0,0.15)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "white";
+                e.currentTarget.style.border = "1px solid rgba(0,0,0,0.1)";
+              }}
             >
-              <svg className="w-5 h-5" viewBox="0 0 24 24" aria-hidden="true">
-                <path fill="#EA4335" d="M12 10.2v3.85h5.5c-.24 1.28-.97 2.36-2.06 3.09v2.57h3.33c1.95-1.8 3.08-4.45 3.08-7.59 0-.73-.07-1.43-.2-2.11H12z" />
-                <path fill="#34A853" d="M6.53 14.13l-.72.55-2.55 1.98C4.87 19.45 8.1 21.5 12 21.5c2.7 0 4.96-.89 6.62-2.42l-3.33-2.57c-.92.62-2.1.98-3.29.98-2.52 0-4.66-1.7-5.42-3.99z" />
-                <path fill="#4A90E2" d="M3.26 6.98A9.48 9.48 0 0 0 2.5 10.2c0 1.13.27 2.2.74 3.16l3.27-2.54A5.68 5.68 0 0 1 6.3 10.2c0-.63.11-1.24.2-1.55z" />
-                <path fill="#FBBC05" d="M12 5.27c1.47 0 2.79.51 3.83 1.5l2.87-2.87C17.01 2.28 14.77 1.5 12 1.5 8.1 1.5 4.87 3.55 3.26 6.98l3.03 2.35C7.34 7.2 9.48 5.27 12 5.27z" />
+              <svg
+                className="w-[18px] h-[18px] flex-shrink-0"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  fill="#EA4335"
+                  d="M12 10.2v3.85h5.5c-.24 1.28-.97 2.36-2.06 3.09v2.57h3.33c1.95-1.8 3.08-4.45 3.08-7.59 0-.73-.07-1.43-.2-2.11H12z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M6.53 14.13l-.72.55-2.55 1.98C4.87 19.45 8.1 21.5 12 21.5c2.7 0 4.96-.89 6.62-2.42l-3.33-2.57c-.92.62-2.1.98-3.29.98-2.52 0-4.66-1.7-5.42-3.99z"
+                />
+                <path
+                  fill="#4A90E2"
+                  d="M3.26 6.98A9.48 9.48 0 0 0 2.5 10.2c0 1.13.27 2.2.74 3.16l3.27-2.54A5.68 5.68 0 0 1 6.3 10.2c0-.63.11-1.24.2-1.55z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M12 5.27c1.47 0 2.79.51 3.83 1.5l2.87-2.87C17.01 2.28 14.77 1.5 12 1.5 8.1 1.5 4.87 3.55 3.26 6.98l3.03 2.35C7.34 7.2 9.48 5.27 12 5.27z"
+                />
               </svg>
-              Sign in with Google
+              <span className="flex-1 text-left text-sm font-semibold text-gray-700 group-hover/g:text-gray-900 transition-colors">
+                Continue with Google
+              </span>
+              <ChevronRight
+                size={13}
+                className="text-gray-300 group-hover/g:text-gray-500 group-hover/g:translate-x-0.5 transition-all duration-200"
+              />
             </button>
 
-            <div className="relative my-5">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t-2 border-gray-100"></div>
-              </div>
-              <div className="relative flex justify-center">
-                <span className="px-4 bg-white text-sm text-gray-400 font-medium">New to Kandy Super Phone?</span>
-              </div>
-            </div>
-
-            <Link
-              to="/register"
-              className="block w-full py-4 border-2 border-gray-200 rounded-2xl text-center font-bold text-gray-700 hover:border-ksp-red hover:text-ksp-red hover:bg-red-50/50 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+            {/* Register link */}
+            <p
+              className="text-center text-xs text-gray-500 mt-6 pt-6"
+              style={{ borderTop: "1px solid rgba(0,0,0,0.07)" }}
             >
-              Create an Account
-            </Link>
+              Don't have an account?{" "}
+              <Link
+                to="/register"
+                className="font-black hover:brightness-125 transition-all duration-200"
+                style={{ color: "#EF014F" }}
+              >
+                Create one →
+              </Link>
+            </p>
           </div>
-
-          <p className="text-center text-sm text-gray-500 mt-6">
-            By signing in, you agree to our{' '}
-            <Link to="/terms" className="text-ksp-red hover:underline font-medium">Terms of Service</Link>
-            {' '}and{' '}
-            <Link to="/privacy" className="text-ksp-red hover:underline font-medium">Privacy Policy</Link>
-          </p>
         </div>
+
+        {/* Footer text */}
+        <p className="text-center text-[10px] text-gray-400 mt-5">
+          © 2026 Kandy Super Phone · All rights reserved
+        </p>
       </div>
     </div>
   );
