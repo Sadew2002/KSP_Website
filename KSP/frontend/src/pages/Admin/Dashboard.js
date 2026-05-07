@@ -69,6 +69,8 @@ const AdminDashboard = () => {
   const [orderStatusFilter, setOrderStatusFilter] = useState('all');
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showOrderDetail, setShowOrderDetail] = useState(false);
+  const [recentOrders, setRecentOrders] = useState([]);
+  const [recentOrdersLoading, setRecentOrdersLoading] = useState(false);
   
   // Payments state
   const [pendingPayments, setPendingPayments] = useState([]);
@@ -294,12 +296,28 @@ const AdminDashboard = () => {
     }
   }, [salesTimeFilter]);
 
+  // Fetch recent orders specifically for dashboard
+  const fetchRecentOrders = useCallback(async () => {
+    setRecentOrdersLoading(true);
+    try {
+      const response = await adminService.getAllOrders({ limit: 5 });
+      if (response.data.success) {
+        setRecentOrders(response.data.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch recent orders:', err);
+    } finally {
+      setRecentOrdersLoading(false);
+    }
+  }, []);
+
   // Fetch sales report when tab changes or filter changes
   useEffect(() => {
     if (activeTab === 'overview') {
       fetchSalesReport();
+      fetchRecentOrders();
     }
-  }, [activeTab, fetchSalesReport]);
+  }, [activeTab, fetchSalesReport, fetchRecentOrders]);
 
   // Load profile when profile tab is active
   useEffect(() => {
@@ -367,6 +385,28 @@ const AdminDashboard = () => {
       }
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to update order status');
+      setTimeout(() => setError(''), 3000);
+    }
+  };
+
+  // Delete order
+  const handleDeleteOrder = async (orderId) => {
+    const confirmed = window.confirm('Delete this order? This will remove the order and its items.');
+    if (!confirmed) return;
+
+    try {
+      const response = await adminService.deleteOrder(orderId);
+      if (response.data.success) {
+        setSuccess('Order deleted successfully');
+        setShowOrderDetail(false);
+        setSelectedOrder(null);
+        fetchOrders();
+        fetchRecentOrders();
+        fetchPendingPayments();
+        setTimeout(() => setSuccess(''), 3000);
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to delete order');
       setTimeout(() => setError(''), 3000);
     }
   };
@@ -977,12 +1017,7 @@ const AdminDashboard = () => {
     { label: 'Out of Stock', value: products.filter(p => p.quantity === 0).length, change: '0', icon: X, color: 'bg-red-500' }
   ];
 
-  const recentOrders = [
-    { id: 'ORD-2025-001', customer: 'Kasun Perera', product: 'iPhone 15 Pro', amount: 'LKR 389,000', status: 'Delivered', date: '2025-12-27' },
-    { id: 'ORD-2025-002', customer: 'Nimali Silva', product: 'Samsung S24', amount: 'LKR 329,000', status: 'Shipped', date: '2025-12-26' },
-    { id: 'ORD-2025-003', customer: 'Ruwan Fernando', product: 'Xiaomi 14', amount: 'LKR 189,000', status: 'Processing', date: '2025-12-26' },
-    { id: 'ORD-2025-004', customer: 'Dilini J.', product: 'AirPods Pro', amount: 'LKR 78,000', status: 'Pending', date: '2025-12-25' }
-  ];
+
 
   const menuItems = [
     { id: 'overview', label: 'Overview', icon: BarChart3 },
@@ -1299,23 +1334,41 @@ const AdminDashboard = () => {
                 <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
                   <div className="flex items-center justify-between mb-6">
                     <h2 className="text-xl font-bold text-gray-900">Recent Orders</h2>
-                    <button className="text-ksp-red text-sm font-semibold hover:underline">View All</button>
+                    <button 
+                    onClick={() => setActiveTab('orders')}
+                    className="text-ksp-red text-sm font-semibold hover:underline">View All</button>
                   </div>
                   <div className="space-y-4">
-                    {recentOrders.slice(0, 4).map((order, i) => (
-                      <div key={i} className="flex items-center gap-4 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer">
-                        <div className="w-10 h-10 bg-gray-200 rounded-xl flex items-center justify-center">
-                          <ShoppingCart size={18} className="text-gray-600" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-gray-900 text-sm truncate">{order.customer}</p>
-                          <p className="text-xs text-gray-500">{order.product}</p>
-                        </div>
-                        <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${getStatusColor(order.status)}`}>
-                          {order.status}
-                        </span>
+                    {recentOrdersLoading ? (
+                      <div className="flex items-center justify-center py-10">
+                        <RefreshCw size={24} className="animate-spin text-ksp-red" />
                       </div>
-                    ))}
+                    ) : recentOrders.length > 0 ? (
+                      recentOrders.map((order, i) => (
+                        <div key={i} className="flex items-center gap-4 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer" onClick={() => { setSelectedOrder(order); setShowOrderDetail(true); }}>
+                          <div className="w-10 h-10 bg-gray-200 rounded-xl flex items-center justify-center">
+                            <ShoppingCart size={18} className="text-gray-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-gray-900 text-sm truncate">
+                              {order.userId ? `${order.userId.firstName} ${order.userId.lastName}` : 'Guest Customer'}
+                            </p>
+                            <p className="text-xs text-gray-500 truncate">
+                              {order.items && order.items.length > 0 
+                                ? `${order.items[0].productId?.name || 'Product'}${order.items.length > 1 ? ` + ${order.items.length - 1} more` : ''}`
+                                : 'No items'}
+                            </p>
+                          </div>
+                          <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase ${getStatusColor(order.status)}`}>
+                            {order.status}
+                          </span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-10">
+                        <p className="text-gray-500 text-sm">No recent orders</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -2245,30 +2298,38 @@ const AdminDashboard = () => {
                 
                 <div className="p-6 space-y-6">
                   {/* Status */}
-                  <div className="flex items-center gap-4">
-                    <span className="text-sm text-gray-500">Status:</span>
-                    <select
-                      value={selectedOrder.status}
-                      onChange={(e) => {
-                        handleUpdateOrderStatus(selectedOrder._id, e.target.value);
-                        setSelectedOrder({ ...selectedOrder, status: e.target.value });
-                      }}
-                      className={`px-4 py-2 rounded-xl font-semibold border-0 cursor-pointer ${
-                        selectedOrder.status === 'delivered' ? 'bg-green-100 text-green-700' :
-                        selectedOrder.status === 'shipped' ? 'bg-purple-100 text-purple-700' :
-                        selectedOrder.status === 'processing' ? 'bg-yellow-100 text-yellow-700' :
-                        selectedOrder.status === 'confirmed' ? 'bg-blue-100 text-blue-700' :
-                        selectedOrder.status === 'cancelled' ? 'bg-red-100 text-red-700' :
-                        'bg-orange-100 text-orange-700'
-                      }`}
+                  <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                      <span className="text-sm text-gray-500">Status:</span>
+                      <select
+                        value={selectedOrder.status}
+                        onChange={(e) => {
+                          handleUpdateOrderStatus(selectedOrder._id, e.target.value);
+                          setSelectedOrder({ ...selectedOrder, status: e.target.value });
+                        }}
+                        className={`px-4 py-2 rounded-xl font-semibold border-0 cursor-pointer ${
+                          selectedOrder.status === 'delivered' ? 'bg-green-100 text-green-700' :
+                          selectedOrder.status === 'shipped' ? 'bg-purple-100 text-purple-700' :
+                          selectedOrder.status === 'processing' ? 'bg-yellow-100 text-yellow-700' :
+                          selectedOrder.status === 'confirmed' ? 'bg-blue-100 text-blue-700' :
+                          selectedOrder.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                          'bg-orange-100 text-orange-700'
+                        }`}
+                      >
+                        <option value="pending">Pending</option>
+                        <option value="confirmed">Confirmed</option>
+                        <option value="processing">Processing</option>
+                        <option value="shipped">Shipped</option>
+                        <option value="delivered">Delivered</option>
+                        <option value="cancelled">Cancelled</option>
+                      </select>
+                    </div>
+                    <button
+                      onClick={() => handleDeleteOrder(selectedOrder._id)}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors font-semibold"
                     >
-                      <option value="pending">Pending</option>
-                      <option value="confirmed">Confirmed</option>
-                      <option value="processing">Processing</option>
-                      <option value="shipped">Shipped</option>
-                      <option value="delivered">Delivered</option>
-                      <option value="cancelled">Cancelled</option>
-                    </select>
+                      <Trash2 size={16} /> Delete Order
+                    </button>
                   </div>
 
                   {/* Customer Info */}

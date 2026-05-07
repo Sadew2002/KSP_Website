@@ -455,7 +455,7 @@ const Home = () => {
             { name: "Earbuds", bg: "url(/images/earbuds-bg.jpg)" },
             { name: "Accessories", bg: "url(/images/accessories-bg.jpg)" }
           ].map((category, i) => (
-            <Link key={i} to={`/products?category=${category.name.toLowerCase()}`} className="group relative overflow-hidden rounded-2xl p-8 bg-gradient-to-br from-gray-800 to-gray-900 backdrop-blur-md border border-white/30 cursor-pointer shadow-md hover:shadow-lg hover:border-ksp-red/50 transition-all duration-500 transform hover:scale-105 h-56" style={{ backgroundImage: category.bg, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+            <Link key={i} to={`/products?productType=${category.name}`} className="group relative overflow-hidden rounded-2xl p-8 bg-gradient-to-br from-gray-800 to-gray-900 backdrop-blur-md border border-white/30 cursor-pointer shadow-md hover:shadow-lg hover:border-ksp-red/50 transition-all duration-500 transform hover:scale-105 h-56" style={{ backgroundImage: category.bg, backgroundSize: 'cover', backgroundPosition: 'center' }}>
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent group-hover:from-black/90 group-hover:via-black/50 transition-all duration-500"></div>
               <div className="absolute inset-0 group-hover:bg-ksp-red/10 transition-colors duration-500"></div>
               <div className="relative z-10 flex flex-col items-center justify-end h-full text-center">

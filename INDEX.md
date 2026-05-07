@@ -172,13 +172,16 @@ Customer Account:
 ## 📊 What's Included
 
 ### Backend Files Modified
-- ✅ 6 Mongoose Models
-- ✅ 10 API Route Files
+- ✅ 8 Mongoose Models
+- ✅ 13 API Route Files
 - ✅ Database Configuration
+- ✅ Cloudinary Integration
 - ✅ Initialization Script
 - ✅ Seed Data Script
 - ✅ Main Server File
 - ✅ Package Configuration
+- ✅ Email Broadcast System
+- ✅ Product Review System
 
 ### API Endpoints
 - ✅ 40+ Endpoints Converted
@@ -211,12 +214,12 @@ Customer Account:
 
 | Metric | Value |
 |--------|-------|
-| Models | 6 |
-| API Routes | 10 |
-| Total Endpoints | 40+ |
-| Lines of Code | 1000+ |
+| Models | 8 |
+| API Routes | 13 |
+| Total Endpoints | 50+ |
+| Lines of Code | 1500+ |
 | Documentation Pages | 5 |
-| Code Examples | 50+ |
+| Code Examples | 60+ |
 
 ---
 
@@ -333,6 +336,8 @@ KSP/
 │   │   │   ├── Order.js ................. Order model
 │   │   │   ├── OrderItem.js ............. OrderItem model
 │   │   │   ├── Payment.js ............... Payment model
+│   │   │   ├── Review.js ................ Review model
+│   │   │   ├── subscription.js .......... Subscription model
 │   │   │   └── index.js ................. Model exports
 │   │   └── routes/
 │   │       ├── authRoutes.js ............ Authentication
@@ -344,6 +349,9 @@ KSP/
 │   │       ├── adminOrderRoutes.js ...... Admin orders
 │   │       ├── adminUserRoutes.js ....... Admin users
 │   │       ├── adminReportRoutes.js ..... Admin reports
+│   │       ├── adminSubscriptionRoutes.js Admin subs
+│   │       ├── reviewRoutes.js .......... Reviews
+│   │       ├── subscriptionRoutes.js .... Subscriptions
 │   │       └── uploadRoutes.js .......... File uploads
 │   │
 │   └── uploads/

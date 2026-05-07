@@ -72,6 +72,7 @@ export const adminService = {
   // Orders
   getAllOrders: (params) => api.get('/admin/orders', { params }),
   updateOrderStatus: (orderId, status) => api.put(`/admin/orders/${orderId}/status`, { status }),
+  deleteOrder: (orderId) => api.delete(`/admin/orders/${orderId}`),
   updateTracking: (orderId, trackingData) => api.put(`/admin/orders/${orderId}/tracking`, trackingData),
   verifyPayment: (orderId, action, reason) => api.put(`/admin/orders/${orderId}/verify-payment`, { action, reason }),
   getPendingVerificationOrders: () => api.get('/admin/orders/pending-verification'),

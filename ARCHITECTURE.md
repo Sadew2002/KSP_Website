@@ -16,16 +16,19 @@
 │              Express.js Backend (Node.js)                   │
 │                                                              │
 │  ┌──────────────────────────────────────────────────┐       │
-│  │ Route Layer (10 files)                           │       │
+│  │ Route Layer (13 files)                           │       │
 │  │ - authRoutes                                     │       │
 │  │ - productRoutes                                  │       │
 │  │ - cartRoutes                                     │       │
 │  │ - orderRoutes                                    │       │
 │  │ - paymentRoutes                                  │       │
+│  │ - reviewRoutes                                   │       │
+│  │ - subscriptionRoutes                             │       │
 │  │ - adminProductRoutes                             │       │
 │  │ - adminOrderRoutes                               │       │
 │  │ - adminUserRoutes                                │       │
 │  │ - adminReportRoutes                              │       │
+│  │ - adminSubscriptionRoutes                        │       │
 │  │ - uploadRoutes                                   │       │
 │  └──────────────────────────────────────────────────┘       │
 │                      │                                       │
@@ -38,13 +41,15 @@
 │  └──────────────────┬──────────────────────────────┘       │
 │                     │                                       │
 │  ┌──────────────────▼──────────────────────────────┐       │
-│  │ Model/Schema Layer (Mongoose - 6 files)        │       │
+│  │ Model/Schema Layer (Mongoose - 8 files)        │       │
 │  │ - User Schema                                   │       │
 │  │ - Product Schema                                │       │
 │  │ - Cart Schema                                   │       │
 │  │ - Order Schema                                  │       │
 │  │ - OrderItem Schema                              │       │
 │  │ - Payment Schema                                │       │
+│  │ - Review Schema                                 │       │
+│  │ - Subscription Schema                           │       │
 │  └──────────────────┬──────────────────────────────┘       │
 │                     │ Mongoose ODM                          │
 └────────────────────┬────────────────────────────────────────┘
@@ -64,6 +69,8 @@
 │  │ - orders        (Orders)                      │           │
 │  │ - orderitems    (Line Items)                  │           │
 │  │ - payments      (Payment Records)             │           │
+│  │ - reviews       (Product Reviews & Ratings)   │           │
+│  │ - subscriptions (User Newsletter/Subs)        │           │
 │  └──────────────────────────────────────────────┘           │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -136,6 +143,57 @@
    │
 3. Return aggregated data
    └─ Dashboard displays metrics
+
+### Product Review Flow
+```
+1. User submits product review
+   │
+2. POST /api/reviews
+   ├─ Check if user is authenticated
+   ├─ Validate rating (1-5) and comment
+   ├─ Check for existing review (prevent duplicates)
+   ├─ Verify purchase status (isVerifiedPurchase)
+   │
+3. Review.create() → MongoDB
+   ├─ Store review document
+   ├─ Update product average rating (async/frontend)
+   │
+4. Return success response
+   └─ Refresh product review list
+```
+
+### Newsletter Subscription Flow
+```
+1. User enters email for newsletter
+   │
+2. POST /api/subscriptions/subscribe
+   ├─ Validate email format
+   ├─ Check existing subscription
+   │
+3. Subscription.create() → MongoDB
+   ├─ Store subscription document
+   ├─ Assign unique subscriptionId
+   │
+4. Return success response
+   └─ Show confirmation toast
+
+### Admin Email Broadcast Flow
+```
+1. Admin composes broadcast message (Subject, Body)
+   │
+2. POST /api/admin/subscriptions/broadcast
+   ├─ Verify Admin role (authorizeAdmin)
+   ├─ Fetch all 'active' subscribers
+   ├─ Chunk subscribers into batches (e.g., 15 per batch)
+   │
+3. SMTP Broadcast (Nodemailer/Gmail)
+   ├─ Send emails via configured SMTP host
+   ├─ Handle failures per batch
+   │
+4. Return summary report
+   └─ dashboard shows total sent, failed, and failed emails
+```
+```
 ```
 
 ---
@@ -284,6 +342,44 @@
 
 ---
 
+### Review Collection
+```javascript
+{
+  _id: ObjectId,
+  productId: ObjectId (ref: Product, indexed),
+  userId: ObjectId (ref: User, indexed),
+  rating: Number (1-5),
+  comment: String,
+  isVerifiedPurchase: Boolean,
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+**Indexes:**
+- Compound unique: (productId, userId)
+- createdAt (descending)
+
+---
+
+### Subscription Collection
+```javascript
+{
+  _id: ObjectId,
+  subscriptionId: String (unique, indexed),
+  userId: ObjectId (ref: User, indexed),
+  subscriptionDate: Date,
+  status: 'active' | 'cancelled' (indexed),
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+**Indexes:**
+- subscriptionId (unique)
+- userId
+- status
+
+---
+
 ## 🔐 Authentication Flow
 
 ```
@@ -308,6 +404,43 @@
    ├─ Use req.user.id for queries
    ├─ Get user's data from MongoDB
    └─ Return response
+
+### Google OAuth Flow
+```
+1. User clicks "Sign in with Google"
+   │
+2. GET /api/auth/google
+   └─ Redirect to Google Consent Screen
+   │
+3. Google redirects to /api/auth/google/callback?code=...
+   ├─ Exchange code for Access Token
+   ├─ Fetch User Profile from Google API
+   ├─ Find or Create User in MongoDB
+   │
+4. Server redirects to Frontend /auth/callback
+   └─ Pass JWT Token and User Info in URL
+   │
+5. Frontend saves token and redirects to Home/Admin
+```
+
+### Password Reset Flow
+```
+1. User requests password reset
+   │
+2. POST /api/auth/forgot-password
+   ├─ Generate 6-digit reset code
+   ├─ Save code and expiry to User document
+   └─ Send email with code (Nodemailer)
+   │
+3. User enters code and new password
+   │
+4. POST /api/auth/reset-password
+   ├─ Verify code and expiry
+   ├─ Update password (auto-hashed)
+   └─ Clear reset fields
+   │
+5. Return success and allow login
+```
 ```
 
 ---
@@ -330,8 +463,11 @@ Developer Machine
 ├─ Backend
 │  └─ Hosted on: Heroku/Railway/AWS EC2/Google Cloud
 │
-└─ Database
-   └─ Hosted on: MongoDB Atlas (Cloud)
+├─ Database
+│  └─ Hosted on: MongoDB Atlas (Cloud)
+│
+└─ File Storage
+   └─ Hosted on: Cloudinary (for Product Images & Bank Slips)
 ```
 
 ---
@@ -423,9 +559,9 @@ db.orderitems.aggregate([
 ## 🎯 Performance Optimization
 
 ### Indexing Strategy
-- **Unique Indexes:** email, sku, orderId (payment)
-- **Single Field Indexes:** brand, condition, isActive, status, userId
-- **Compound Indexes:** (userId, productId) for carts
+- **Unique Indexes:** email, sku, orderId (payment), subscriptionId, (productId, userId) for reviews
+- **Single Field Indexes:** brand, condition, isActive, status, userId, productId
+- **Compound Indexes:** (userId, productId) for carts, (productId, userId) for reviews
 
 ### Query Optimization
 - Use `.select()` to exclude passwords

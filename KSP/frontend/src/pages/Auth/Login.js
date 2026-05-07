@@ -60,6 +60,14 @@ const Login = () => {
       return;
     }
 
+    // Email validation: must contain '@' and end with 'gmail.com'
+    const emailLower = formData.email.toLowerCase().trim();
+    if (!emailLower.includes('@') || !emailLower.endsWith('.com')) {
+      setError('Please enter a valid Gmail address (e.g., user@gmail.com)');
+      setLoading(false);
+      return;
+    }
+
     try {
       const response = await api.post('/auth/login', {
         email: formData.email.toLowerCase().trim(),

@@ -10,8 +10,9 @@ Your KSP e-commerce backend has been **completely migrated from PostgreSQL + Seq
 
 - ✅ Removed PostgreSQL dependencies (pg, pg-hstore, sequelize)
 - ✅ Added Mongoose (MongoDB ODM)
-- ✅ Converted all 6 data models to Mongoose
-- ✅ Updated all 10 route files (auth, products, cart, orders, payments, admin)
+- ✅ Converted all 8 data models to Mongoose
+- ✅ Updated all 13 route files (auth, products, cart, orders, payments, admin, reviews, subscriptions)
+- ✅ Integrated Cloudinary for image storage
 - ✅ Converted seed data script
 - ✅ Updated database initialization script
 - ✅ Fixed deprecation warnings
@@ -107,6 +108,8 @@ curl -X GET http://localhost:5000/api/cart \
 - `backend/src/models/Order.js`
 - `backend/src/models/OrderItem.js`
 - `backend/src/models/Payment.js`
+- `backend/src/models/Review.js`
+- `backend/src/models/subscription.js`
 - `backend/src/models/index.js`
 
 ### Routes (All Updated)
@@ -115,10 +118,14 @@ curl -X GET http://localhost:5000/api/cart \
 - `backend/src/routes/cartRoutes.js`
 - `backend/src/routes/orderRoutes.js`
 - `backend/src/routes/paymentRoutes.js`
+- `backend/src/routes/reviewRoutes.js`
+- `backend/src/routes/subscriptionRoutes.js`
 - `backend/src/routes/adminProductRoutes.js`
 - `backend/src/routes/adminOrderRoutes.js`
 - `backend/src/routes/adminUserRoutes.js`
 - `backend/src/routes/adminReportRoutes.js`
+- `backend/src/routes/adminSubscriptionRoutes.js`
+- `backend/src/routes/uploadRoutes.js`
 
 ### Scripts
 - **`backend/src/server.js`** - MongoDB connection
@@ -137,6 +144,7 @@ GET    /api/products/:id       - Get product details
 GET    /api/products/brands    - Get unique brands
 POST   /api/auth/register      - Register new user
 POST   /api/auth/login         - Login user
+GET    /api/reviews/product/:id - Get reviews for product
 ```
 
 ### Protected Endpoints (Require JWT Token)
@@ -154,6 +162,9 @@ PUT    /api/orders/:id/cancel  - Cancel order
 
 POST   /api/payments/process-payment      - Process payment
 GET    /api/payments/:orderId  - Get payment status
+
+POST   /api/reviews            - Submit product review
+POST   /api/subscriptions/subscribe - Subscribe to newsletter
 ```
 
 ### Admin Endpoints (Require Admin Role)
@@ -179,6 +190,8 @@ GET    /api/admin/reports/sales               - Sales report
 GET    /api/admin/reports/revenue             - Revenue report
 GET    /api/admin/reports/customers           - Customer report
 GET    /api/admin/reports/inventory           - Inventory report
+GET    /api/admin/subscriptions/subscribers   - List subscribers
+POST   /api/admin/subscriptions/broadcast     - Email broadcast
 ```
 
 ---
@@ -208,6 +221,11 @@ All critical fields have indexes for optimal performance.
 ```env
 MONGODB_URI=mongodb://localhost:27017/kandy_super_phone
 JWT_SECRET=your_secret_key_here
+
+# Cloudinary
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
 ```
 
 **Optional:**

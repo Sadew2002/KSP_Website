@@ -112,9 +112,8 @@ Enhanced with complete review functionality:
 - Requires valid token in Authorization header
 
 ### Performance:
-- Compound indexes ensure fast queries
-- Pagination support for large review sets
 - Efficient aggregation for average ratings
+- Integrated with Cloudinary for product images displayed in review sections
 
 ## API Examples
 

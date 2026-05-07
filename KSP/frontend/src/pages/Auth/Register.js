@@ -64,8 +64,10 @@ const Register = () => {
     if (!formData.lastName.trim()) newErrors.lastName = 'Last name is required';
     if (!formData.email.trim()) {
       newErrors.email = 'Email is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Please enter a valid email address';
+
+    // validate the email with @ sign and end with gmail.com
+    } else if (!formData.email.includes('@') || !formData.email.toLowerCase().trim().endsWith('gmail.com')) {
+      newErrors.email = 'Please enter a valid Gmail address (must contain @ and end with gmail.com)';
     }
     if (formData.phone && !/^[+]?[\d\s-]{10,}$/.test(formData.phone.replace(/\s/g, ''))) {
       newErrors.phone = 'Please enter a valid phone number';
