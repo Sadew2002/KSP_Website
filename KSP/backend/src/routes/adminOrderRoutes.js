@@ -4,6 +4,8 @@ const router = express.Router();
 const mongoose = require('mongoose');
 const Order = require('../models/Order');
 const OrderItem = require('../models/OrderItem');
+const Payment = require('../models/Payment');
+const Product = require('../models/Product');
 
 /**
  * GET /api/admin/orders
@@ -395,6 +397,58 @@ router.get('/reports/sales', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to generate sales report'
+    });
+  }
+});
+
+/**
+ * DELETE /api/admin/orders/:orderId
+ * Delete an order and its related records
+ */
+router.delete('/:orderId', async (req, res) => {
+  try {
+    const { orderId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(orderId)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid order ID'
+      });
+    }
+
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        error: 'Order not found'
+      });
+    }
+
+    const orderItems = await OrderItem.find({ orderId: order._id });
+    const normalizedStatus = String(order.status || '').toLowerCase();
+    const shouldRestock = !['delivered', 'cancelled'].includes(normalizedStatus);
+
+    if (shouldRestock) {
+      for (const item of orderItems) {
+        await Product.findByIdAndUpdate(item.productId, {
+          $inc: { quantity: item.quantity }
+        });
+      }
+    }
+
+    await Payment.deleteOne({ orderId: order._id });
+    await OrderItem.deleteMany({ orderId: order._id });
+    await Order.findByIdAndDelete(orderId);
+
+    res.json({
+      success: true,
+      message: 'Order deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete order error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to delete order'
     });
   }
 });
